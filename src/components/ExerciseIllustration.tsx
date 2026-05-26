@@ -57,6 +57,32 @@ function getIllustrationVariant(exercise: Pick<ExerciseTemplate, "id" | "name" |
   return "generic";
 }
 
+function getExternalAsset(exercise: Pick<ExerciseTemplate, "id" | "name" | "muscleGroup">): string | null {
+  const source = `${exercise.id} ${exercise.name}`.toLowerCase();
+
+  if (includesAny(source, ["lat-pulldown", "高位下拉", "窄距下拉", "close-grip-pulldown"])) {
+    return "sternum-chins.svg";
+  }
+  if (includesAny(source, ["rear-delt", "后束"])) return "rear-lateral-raise.svg";
+  if (includesAny(source, ["face-pull", "面拉"])) return "high-cable-curl.svg";
+  if (includesAny(source, ["press", "上推"]) && exercise.muscleGroup === "shoulder") return "arnold-press.svg";
+  if (includesAny(source, ["lateral", "侧飞鸟"])) return "dumbbell-lateral-raise.svg";
+  if (includesAny(source, ["front-raise", "前提"])) return "barbell-front-raise.svg";
+  if (includesAny(source, ["hammer", "锤举"])) return "bicep-hammer-curl.svg";
+  if (includesAny(source, ["curl", "弯举"])) return "standing-biceps-curl.svg";
+  if (includesAny(source, ["triceps", "反握下拉", "正握下拉", "绳子下拉"])) return "low-triceps-extension.svg";
+  if (includesAny(source, ["row", "划船"]) && !includesAny(source, ["db-row", "哑铃划船"])) return "t-bar-row.svg";
+  if (includesAny(source, ["bench", "卧推", "seated-press", "坐姿推胸"])) return "bench-press.svg";
+  if (includesAny(source, ["fly", "夹胸", "pec-deck", "蝴蝶"])) return "dumbbell-fly.svg";
+  if (includesAny(source, ["crunch", "卷腹"])) return "crunches.svg";
+  if (includesAny(source, ["leg-kick", "上踢腿"])) return "bent-knee-hip-raise.svg";
+  if (includesAny(source, ["leg-raise", "举腿"])) return "leg-raises.svg";
+  if (includesAny(source, ["squat", "深蹲"])) return "squat.svg";
+  if (includesAny(source, ["adductor", "内收"])) return "leg-press.svg";
+
+  return null;
+}
+
 function CableFrame() {
   return (
     <>
@@ -256,6 +282,18 @@ function renderVariant(variant: IllustrationVariant) {
 export function ExerciseIllustration({ exercise, size = "card" }: ExerciseIllustrationProps) {
   const variant = getIllustrationVariant(exercise);
   const groupClass = `exercise-illustration--${exercise.muscleGroup as MuscleGroup}`;
+  const externalAsset = getExternalAsset(exercise);
+
+  if (externalAsset) {
+    return (
+      <img
+        className={`exercise-illustration exercise-illustration--image exercise-illustration--${size} ${groupClass}`}
+        src={`/exercise-assets/${externalAsset}`}
+        alt={`${exercise.name}动作插画`}
+        loading="lazy"
+      />
+    );
+  }
 
   return (
     <svg

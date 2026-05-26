@@ -12,6 +12,16 @@
 - 统计：首页展示本周、本月、总训练次数、最近 30 天部位分布和久未训练提醒。
 - 数据管理：导出 JSON、导入 JSON、导出 Markdown、恢复初始数据、清空数据。
 
+## 素材授权
+
+动作插画优先使用 Open Training exercise image collection 的本地 SVG 资源。
+
+- Source: https://github.com/chaosbastler/opentraining-exercises
+- Original author/source: Everkinetic
+- License: Creative Commons Attribution-ShareAlike 3.0 Unported
+
+无合适外部素材的动作使用项目内自绘 SVG 线稿作为 fallback。
+
 ## 技术栈
 
 - Vite

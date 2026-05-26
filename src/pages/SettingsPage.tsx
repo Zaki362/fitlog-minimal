@@ -126,6 +126,15 @@ export function SettingsPage({ data, notify, onBack, onImport, onReset, onClear 
         </div>
       </section>
 
+      <section className="panel">
+        <div className="section-title">
+          <h2>插画来源</h2>
+        </div>
+        <p className="asset-credit">
+          动作插画来自 Open Training / Everkinetic，使用 CC BY-SA 3.0 授权；无匹配素材的动作使用本地绘制线稿。
+        </p>
+      </section>
+
       <ConfirmDialog
         open={confirmReset}
         title="恢复初始数据？"
