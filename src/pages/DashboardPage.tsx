@@ -1,15 +1,15 @@
+import { BodyTrainingMap } from "../components/BodyTrainingMap";
 import { EmptyState } from "../components/EmptyState";
-import { MuscleChip } from "../components/MuscleChip";
 import { StatCard } from "../components/StatCard";
+import { TrainingRecommendationCard } from "../components/TrainingRecommendationCard";
 import { formatDateCN, todayYmd } from "../lib/date";
 import {
-  getMuscleGroupCounts,
+  getLastTrainedDateByMuscleGroup,
   getRecentSessions,
   getThisMonthWorkoutCount,
   getThisWeekWorkoutCount,
   getTotalWorkoutCount,
-  getUndertrainedMuscleGroups,
-  getWorkoutCalendarData,
+  getTrainingRecommendation,
 } from "../lib/stats";
 import { formatSessionLine } from "../lib/workout";
 import type { AppData, MuscleGroup, WorkoutSession } from "../types";
@@ -18,131 +18,59 @@ import { MUSCLE_LABELS } from "../types";
 type DashboardPageProps = {
   data: AppData;
   onQuickStart: (groups: MuscleGroup[]) => void;
+  onOpenHistory: () => void;
   onOpenSession: (session: WorkoutSession) => void;
   onOpenSettings: () => void;
 };
 
-const quickGroups: Array<{ label: string; groups: MuscleGroup[] }> = [
-  { label: "背", groups: ["back"] },
-  { label: "胸", groups: ["chest"] },
-  { label: "肩", groups: ["shoulder"] },
-  { label: "腹", groups: ["abs"] },
-  { label: "胳膊", groups: ["arms"] },
-  { label: "腿", groups: ["legs"] },
-  { label: "自定义", groups: ["custom"] },
-];
-
-export function DashboardPage({ data, onQuickStart, onOpenSession, onOpenSettings }: DashboardPageProps) {
-  const recent = getRecentSessions(data, 5);
-  const lastSession = recent[0];
-  const counts = getMuscleGroupCounts(data, 30);
-  const undertrained = getUndertrainedMuscleGroups(data);
-  const calendar = getWorkoutCalendarData(data, 30);
-  const maxCount = Math.max(1, ...Object.values(counts).map((value) => value ?? 0));
-  const distribution = Object.entries(counts)
-    .filter(([, count]) => Boolean(count))
-    .sort(([, a], [, b]) => (b ?? 0) - (a ?? 0)) as Array<[MuscleGroup, number]>;
+export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession, onOpenSettings }: DashboardPageProps) {
+  const recent = getRecentSessions(data, 3);
+  const recommendation = getTrainingRecommendation(data);
+  const recommendationGroups = [...recommendation.primaryGroups, ...(recommendation.secondaryGroups ?? [])];
+  const lastTrainedMap = getLastTrainedDateByMuscleGroup(data);
+  const recommendationLabel = recommendationGroups.map((group) => MUSCLE_LABELS[group]).join(" + ");
 
   return (
-    <div className="page">
-      <header className="page-header">
+    <div className="page dashboard-page">
+      <header className="page-header dashboard-header">
         <div>
-          <p className="eyebrow">今日 {formatDateCN(todayYmd())}</p>
           <h1>练一下</h1>
+          <p className="dashboard-date">{formatDateCN(todayYmd())}</p>
         </div>
-        <button className="icon-button icon-button--solid" type="button" onClick={onOpenSettings}>
-          设置
+        <button className="icon-button icon-button--plain" type="button" onClick={onOpenSettings} aria-label="打开设置">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 8.1a3.9 3.9 0 1 0 0 7.8 3.9 3.9 0 0 0 0-7.8Z" />
+            <path d="M19 13.2a7.5 7.5 0 0 0 .1-1.2 7.5 7.5 0 0 0-.1-1.2l2-1.5-2-3.5-2.4 1a8.2 8.2 0 0 0-2.1-1.2L14.2 3h-4.4l-.4 2.6a8.2 8.2 0 0 0-2.1 1.2l-2.4-1-2 3.5 2 1.5a7.5 7.5 0 0 0-.1 1.2c0 .4 0 .8.1 1.2l-2 1.5 2 3.5 2.4-1c.6.5 1.3.9 2.1 1.2l.4 2.6h4.4l.4-2.6c.8-.3 1.5-.7 2.1-1.2l2.4 1 2-3.5Z" />
+          </svg>
         </button>
       </header>
 
-      <section className="stat-grid" aria-label="训练统计">
-        <StatCard label="本周" value={getThisWeekWorkoutCount(data)} hint="次训练" />
-        <StatCard label="本月" value={getThisMonthWorkoutCount(data)} hint="次训练" />
-        <StatCard label="总计" value={getTotalWorkoutCount(data)} hint="条记录" />
+      <section className="stat-grid stat-grid--compact" aria-label="训练统计">
+        <StatCard label="本周训练" value={getThisWeekWorkoutCount(data)} hint="次" />
+        <StatCard label="本月训练" value={getThisMonthWorkoutCount(data)} hint="次" />
+        <StatCard label="总训练" value={getTotalWorkoutCount(data)} hint="次" />
+      </section>
+
+      <section className="dashboard-start">
+        <button className="button button--primary button--block dashboard-start__button" type="button" onClick={() => onQuickStart([])}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M13.2 2.8 5.7 13.1h5.7l-.6 8.1 7.5-10.4h-5.7z" />
+          </svg>
+          开始训练
+        </button>
+        <p>今日建议：{recommendationLabel || recommendation.title}</p>
       </section>
 
       <section className="panel">
         <div className="section-title">
-          <h2>最近一次</h2>
-        </div>
-        {lastSession ? (
-          <button className="session-row session-row--button" type="button" onClick={() => onOpenSession(lastSession)}>
-            <span>{formatSessionLine(lastSession)}</span>
-            <small>{formatDateCN(lastSession.date)}</small>
+          <h2>最近三次</h2>
+          <button className="text-link" type="button" onClick={onOpenHistory}>
+            查看全部
+            <span aria-hidden="true">›</span>
           </button>
-        ) : (
-          <EmptyState title="还没有训练记录" actionLabel="开始一练" onAction={() => onQuickStart(["custom"])} />
-        )}
-      </section>
-
-      <section className="panel">
-        <div className="section-title">
-          <h2>快捷开始</h2>
-        </div>
-        <div className="quick-grid">
-          {quickGroups.map((item) => (
-            <button className="quick-button" key={item.label} type="button" onClick={() => onQuickStart(item.groups)}>
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="section-title">
-          <h2>最近 30 天</h2>
-        </div>
-        {distribution.length ? (
-          <div className="distribution">
-            {distribution.map(([group, count]) => (
-              <div className="distribution__row" key={group}>
-                <span>{MUSCLE_LABELS[group]}</span>
-                <div className="distribution__bar">
-                  <i style={{ width: `${Math.max(12, (count / maxCount) * 100)}%` }} />
-                </div>
-                <strong>{count}</strong>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState title="最近 30 天还没有记录" />
-        )}
-
-        <div className="calendar-strip" aria-label="最近 30 天训练日历">
-          {calendar.map((day) => (
-            <span
-              className={`calendar-dot ${day.count ? "is-active" : ""}`}
-              key={day.date}
-              title={`${day.date} ${day.count}次`}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="section-title">
-          <h2>久未训练</h2>
-        </div>
-        {undertrained.length ? (
-          <div className="alert-list">
-            {undertrained.map((item) => (
-              <div className="alert-card" key={item.muscleGroup}>
-                <MuscleChip group={item.muscleGroup} />
-                <span>{item.message}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="muted">主要部位节奏不错。</p>
-        )}
-      </section>
-
-      <section className="panel">
-        <div className="section-title">
-          <h2>最近记录</h2>
         </div>
         {recent.length ? (
-          <div className="session-list">
+          <div className="session-list session-list--compact">
             {recent.map((session) => (
               <button
                 className="session-row session-row--button"
@@ -151,13 +79,24 @@ export function DashboardPage({ data, onQuickStart, onOpenSession, onOpenSetting
                 onClick={() => onOpenSession(session)}
               >
                 <span>{formatSessionLine(session)}</span>
-                <small>{session.muscleGroups.map((group) => MUSCLE_LABELS[group]).join(" + ")}</small>
+                <small>{formatDateCN(session.date)}</small>
               </button>
             ))}
           </div>
         ) : (
-          <EmptyState title="没有训练记录" />
+          <EmptyState title="还没有训练记录" actionLabel="开始训练" onAction={() => onQuickStart([])} />
         )}
+      </section>
+
+      <section className="panel">
+        <div className="section-title">
+          <h2>身体状态</h2>
+          <span>了解颜色含义 ⓘ</span>
+        </div>
+        <div className="dashboard-body-card">
+          <BodyTrainingMap lastTrainedMap={lastTrainedMap} />
+          <TrainingRecommendationCard recommendation={recommendation} onStart={onQuickStart} variant="dashboard" />
+        </div>
       </section>
     </div>
   );

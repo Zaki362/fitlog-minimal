@@ -63,11 +63,13 @@ export function ExerciseLibraryPage({
   onArchiveExercise,
 }: ExerciseLibraryPageProps) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<ExerciseForm>(() => toForm());
   const [pendingArchive, setPendingArchive] = useState<ExerciseTemplate | null>(null);
 
   const visibleExercises = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
     return data.exercises
       .filter((exercise) => !exercise.isArchived)
       .filter((exercise) => {
@@ -79,8 +81,16 @@ export function ExerciseLibraryPage({
         }
         return exercise.muscleGroup === filter;
       })
+      .filter((exercise) => {
+        if (!keyword) {
+          return true;
+        }
+        return `${exercise.name} ${exercise.notes ?? ""} ${MUSCLE_LABELS[exercise.muscleGroup]}`
+          .toLowerCase()
+          .includes(keyword);
+      })
       .sort((a, b) => MUSCLE_ORDER.indexOf(a.muscleGroup) - MUSCLE_ORDER.indexOf(b.muscleGroup));
-  }, [data.exercises, filter]);
+  }, [data.exercises, filter, search]);
 
   const lastDates = useMemo(() => {
     const map = new Map<string, string>();
@@ -173,18 +183,31 @@ export function ExerciseLibraryPage({
   }
 
   return (
-    <div className="page">
+    <div className="page exercise-library-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">动作</p>
           <h1>动作库</h1>
         </div>
         <button className="button button--primary" type="button" onClick={openNew}>
-          新增动作
+          + 新增动作
         </button>
       </header>
 
       <section className="panel">
+        <label className="search-field">
+          <span aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m15.5 15.5 4 4" />
+            </svg>
+          </span>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="搜索动作名称"
+            aria-label="搜索动作名称"
+          />
+        </label>
         <div className="filter-row">
           {filters.map((option) =>
             option === "all" ? (
@@ -213,8 +236,9 @@ export function ExerciseLibraryPage({
           groupedExercises.map((section) => (
             <div className="exercise-section" key={section.group}>
               <div className="section-title section-title--compact">
-                <h2>{MUSCLE_LABELS[section.group]}</h2>
-                <span>{section.exercises.length} 个动作</span>
+                <h2>
+                  {MUSCLE_LABELS[section.group]} ({section.exercises.length})
+                </h2>
               </div>
               {section.exercises.map((exercise) => (
                 <ExerciseCard

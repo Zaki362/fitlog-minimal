@@ -5,14 +5,15 @@ import { BottomNav } from "./BottomNav";
 type AppShellProps = {
   activeTab: MainTab;
   children: ReactNode;
+  hideNav?: boolean;
   onNavigate: (tab: MainTab) => void;
 };
 
-export function AppShell({ activeTab, children, onNavigate }: AppShellProps) {
+export function AppShell({ activeTab, children, hideNav = false, onNavigate }: AppShellProps) {
   return (
     <div className="app-shell">
       <main className="app-main">{children}</main>
-      <BottomNav activeTab={activeTab} onNavigate={onNavigate} />
+      {hideNav ? null : <BottomNav activeTab={activeTab} onNavigate={onNavigate} />}
     </div>
   );
 }

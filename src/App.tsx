@@ -102,11 +102,56 @@ export default function App() {
     setView({ name: tab });
   }
 
-  function saveSession(session: WorkoutSession) {
-    commit((current) => ({
-      ...current,
-      sessions: [session, ...current.sessions],
-    }));
+  function saveSession(session: WorkoutSession, updateTemplates = false) {
+    commit((current) => {
+      const progressUpdates = [...current.progressUpdates];
+      const exercises = current.exercises.map((template) => {
+        if (!updateTemplates) {
+          return template;
+        }
+
+        const sessionExercise = session.exercises.find(
+          (exercise) =>
+            exercise.exerciseTemplateId === template.id &&
+            exercise.actualWeightKg !== null &&
+            exercise.actualWeightKg !== undefined &&
+            exercise.actualWeightKg !== template.defaultWeightKg,
+        );
+
+        if (!sessionExercise) {
+          return template;
+        }
+
+        progressUpdates.unshift({
+          id: createId("progress"),
+          exerciseTemplateId: template.id,
+          date: session.date,
+          oldWeightKg: template.defaultWeightKg ?? null,
+          newWeightKg: sessionExercise.actualWeightKg ?? null,
+          oldTargetSets: template.targetSets ?? null,
+          newTargetSets: sessionExercise.actualSets ?? template.targetSets ?? null,
+          oldTargetReps: template.targetReps ?? null,
+          newTargetReps: sessionExercise.actualReps ?? template.targetReps ?? null,
+          reason: `${session.title} 后更新模板`,
+          createdAt: new Date().toISOString(),
+        });
+
+        return {
+          ...template,
+          defaultWeightKg: sessionExercise.actualWeightKg ?? template.defaultWeightKg ?? null,
+          targetSets: sessionExercise.actualSets ?? template.targetSets ?? null,
+          targetReps: sessionExercise.actualReps ?? template.targetReps ?? null,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+
+      return {
+        ...current,
+        exercises,
+        progressUpdates,
+        sessions: [session, ...current.sessions],
+      };
+    });
     notify("训练已保存");
     setView({ name: "session-detail", sessionId: session.id });
   }
@@ -255,10 +300,11 @@ export default function App() {
   }
 
   return (
-    <AppShell activeTab={activeTab} onNavigate={navigate}>
+    <AppShell activeTab={activeTab} hideNav={view.name === "active"} onNavigate={navigate}>
       {view.name === "dashboard" ? (
         <DashboardPage
           data={data}
+          onOpenHistory={() => setView({ name: "history" })}
           onOpenSettings={() => setView({ name: "settings" })}
           onOpenSession={(session) => setView({ name: "session-detail", sessionId: session.id })}
           onQuickStart={(groups) => {
@@ -273,12 +319,14 @@ export default function App() {
           data={data}
           initialGroups={startPreset}
           notify={notify}
+          onOpenExerciseLibrary={() => setView({ name: "exercises" })}
           onStartWorkout={(draft) => setView({ name: "active", draft })}
         />
       ) : null}
 
       {view.name === "active" ? (
         <ActiveWorkoutPage
+          data={data}
           draft={view.draft}
           notify={notify}
           onCancel={() => setView({ name: "start" })}

@@ -29,7 +29,18 @@ export function formatWeight(value: number | null | undefined, unit = "kg"): str
   if (value === null || value === undefined) {
     return "-";
   }
-  return unit === "kg" ? `${value}kg` : String(value);
+  return unit === "kg" ? `${formatNumber(value)}kg` : formatNumber(value);
+}
+
+export function formatNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2))).replace(/\.0+$/, "");
+}
+
+export function getDefaultWeightStep(weight: number | null): number {
+  if (weight === null) return 1;
+  if (weight <= 10) return 0.5;
+  if (weight <= 30) return 1;
+  return 2.5;
 }
 
 export function formatRepValue(value: number | string | null | undefined): string {

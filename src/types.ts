@@ -98,6 +98,14 @@ export interface AppData {
   version: number;
 }
 
+export interface TrainingRecommendation {
+  primaryGroups: MuscleGroup[];
+  secondaryGroups?: MuscleGroup[];
+  title: string;
+  reason: string;
+  ctaLabel: string;
+}
+
 export interface ActiveWorkoutDraft {
   date: string;
   title: string;

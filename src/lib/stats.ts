@@ -13,10 +13,30 @@ import type {
   MuscleGroup,
   ProgressUpdate,
   SessionExercise,
+  TrainingRecommendation,
   UndertrainedGroup,
   WorkoutSession,
 } from "../types";
 import { MUSCLE_LABELS, PRIMARY_MUSCLE_GROUPS } from "../types";
+
+const TRAINING_FRESHNESS_COLORS = {
+  veryFresh: "#B8FF3C",
+  fresh: "#D8FF76",
+  warm: "#E9F8B4",
+  stale: "#E4E8D8",
+  cold: "#DCDDD8",
+  never: "#E9E9E5",
+};
+
+function groupNameInSentence(group: MuscleGroup): string {
+  if (group === "legs") return "腿部";
+  if (group === "chest") return "胸部";
+  if (group === "back") return "背部";
+  if (group === "shoulder") return "肩部";
+  if (group === "arms") return "胳膊";
+  if (group === "abs") return "腹部";
+  return MUSCLE_LABELS[group];
+}
 
 function sessionGroups(session: WorkoutSession): MuscleGroup[] {
   const groups = new Set<MuscleGroup>(session.muscleGroups);
@@ -97,6 +117,91 @@ export function getLastTrainedDateByMuscleGroup(data: AppData): Partial<Record<M
   });
 
   return lastDates;
+}
+
+export function getDaysSinceLastTrained(group: MuscleGroup, data: AppData, referenceYmd = todayYmd()): number | null {
+  const lastDate = getLastTrainedDateByMuscleGroup(data)[group];
+  if (!lastDate) {
+    return null;
+  }
+  return Math.max(0, diffDays(lastDate, referenceYmd));
+}
+
+export function getTrainingFreshnessColor(lastDate: string | null | undefined, today: Date): string {
+  if (!lastDate) {
+    return TRAINING_FRESHNESS_COLORS.never;
+  }
+
+  const todayYmdValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
+    today.getDate(),
+  ).padStart(2, "0")}`;
+  const stableDays = Math.max(0, diffDays(lastDate, todayYmdValue));
+
+  if (stableDays <= 2) return TRAINING_FRESHNESS_COLORS.veryFresh;
+  if (stableDays <= 7) return TRAINING_FRESHNESS_COLORS.fresh;
+  if (stableDays <= 14) return TRAINING_FRESHNESS_COLORS.warm;
+  if (stableDays <= 30) return TRAINING_FRESHNESS_COLORS.stale;
+  return TRAINING_FRESHNESS_COLORS.cold;
+}
+
+export function getTrainingRecommendation(data: AppData, referenceYmd = todayYmd()): TrainingRecommendation {
+  const primaryGroups: MuscleGroup[] = ["legs", "chest", "back", "shoulder", "arms"];
+  const lastDates = getLastTrainedDateByMuscleGroup(data);
+  const counts30 = getMuscleGroupCounts(data, 30);
+
+  if (!lastDates.legs) {
+    return {
+      primaryGroups: ["legs"],
+      title: "建议练腿",
+      reason: "腿部还没有近期训练记录，可以安排一次腿部训练。",
+      ctaLabel: "按建议开练",
+    };
+  }
+
+  const rankedByStaleness = primaryGroups
+    .map((group) => ({
+      group,
+      daysSince: lastDates[group] ? diffDays(lastDates[group] as string, referenceYmd) : Number.POSITIVE_INFINITY,
+    }))
+    .sort((a, b) => b.daysSince - a.daysSince);
+  const stale = rankedByStaleness.find((item) => item.daysSince > 14 || !Number.isFinite(item.daysSince));
+
+  if (stale) {
+    const secondaryGroups =
+      ["chest", "back", "shoulder"].includes(stale.group) && getDaysSinceLastTrained("abs", data, referenceYmd) !== null
+        ? (["abs"] as MuscleGroup[])
+        : undefined;
+
+    return {
+      primaryGroups: [stale.group],
+      secondaryGroups,
+      title: `建议练${MUSCLE_LABELS[stale.group]}`,
+      reason: `${groupNameInSentence(stale.group)}已经 ${stale.daysSince} 天没练，可以安排一次${groupNameInSentence(
+        stale.group,
+      )}训练。`,
+      ctaLabel: "按建议开练",
+    };
+  }
+
+  const lightOption = primaryGroups
+    .map((group) => ({
+      group,
+      count: counts30[group] ?? 0,
+      daysSince: lastDates[group] ? diffDays(lastDates[group] as string, referenceYmd) : 999,
+    }))
+    .sort((a, b) => a.count - b.count || b.daysSince - a.daysSince)[0];
+
+  const primary = lightOption?.group ?? "shoulder";
+  const secondaryGroups =
+    ["chest", "back", "shoulder"].includes(primary) && (counts30.abs ?? 0) <= 2 ? (["abs"] as MuscleGroup[]) : undefined;
+
+  return {
+    primaryGroups: [primary],
+    secondaryGroups,
+    title: "状态不错",
+    reason: `主要部位最近都有训练，可以选择一次较轻松的${groupNameInSentence(primary)}或有氧训练。`,
+    ctaLabel: "按建议开练",
+  };
 }
 
 export function getUndertrainedMuscleGroups(data: AppData, referenceYmd = todayYmd()): UndertrainedGroup[] {
