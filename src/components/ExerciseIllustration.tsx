@@ -24,7 +24,7 @@ type IllustrationVariant =
 
 type ExerciseIllustrationProps = {
   exercise: Pick<ExerciseTemplate, "id" | "name" | "muscleGroup">;
-  size?: "card" | "detail";
+  size?: "card" | "detail" | "hero";
 };
 
 function includesAny(source: string, tokens: string[]): boolean {

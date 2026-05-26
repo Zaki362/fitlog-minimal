@@ -6,6 +6,7 @@ import { MUSCLE_LABELS } from "../types";
 
 type BodyTrainingMapProps = {
   lastTrainedMap: Partial<Record<MuscleGroup, string | null>>;
+  compact?: boolean;
   selectedGroup?: MuscleGroup | null;
   onSelectGroup?: (group: MuscleGroup) => void;
 };
@@ -58,7 +59,7 @@ function freshnessText(lastDate: string | null | undefined): string {
   return `${days} 天前`;
 }
 
-export function BodyTrainingMap({ lastTrainedMap, selectedGroup, onSelectGroup }: BodyTrainingMapProps) {
+export function BodyTrainingMap({ lastTrainedMap, compact = false, selectedGroup, onSelectGroup }: BodyTrainingMapProps) {
   const [activeGroup, setActiveGroup] = useState<MuscleGroup | null>(selectedGroup ?? null);
   const today = useMemo(() => new Date(), []);
   const current = selectedGroup ?? activeGroup;
@@ -69,7 +70,7 @@ export function BodyTrainingMap({ lastTrainedMap, selectedGroup, onSelectGroup }
   }
 
   return (
-    <div className="body-map" aria-label="人体训练状态图">
+    <div className={`body-map ${compact ? "body-map--compact" : ""}`} aria-label="人体训练状态图">
       <svg viewBox="0 0 260 230" role="img" aria-label="训练部位热力图">
         <path
           className="body-map__outline"

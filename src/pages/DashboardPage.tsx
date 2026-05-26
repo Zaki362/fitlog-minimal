@@ -1,7 +1,6 @@
-import { BodyTrainingMap } from "../components/BodyTrainingMap";
+import { DashboardTrainingVisual } from "../components/DashboardTrainingVisual";
 import { EmptyState } from "../components/EmptyState";
 import { StatCard } from "../components/StatCard";
-import { TrainingRecommendationCard } from "../components/TrainingRecommendationCard";
 import { formatDateCN, todayYmd } from "../lib/date";
 import {
   getLastTrainedDateByMuscleGroup,
@@ -11,7 +10,7 @@ import {
   getTotalWorkoutCount,
   getTrainingRecommendation,
 } from "../lib/stats";
-import { formatSessionLine } from "../lib/workout";
+import { formatSessionLine, templateMatchesSelected } from "../lib/workout";
 import type { AppData, MuscleGroup, WorkoutSession } from "../types";
 import { MUSCLE_LABELS } from "../types";
 
@@ -29,6 +28,9 @@ export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession
   const recommendationGroups = [...recommendation.primaryGroups, ...(recommendation.secondaryGroups ?? [])];
   const lastTrainedMap = getLastTrainedDateByMuscleGroup(data);
   const recommendationLabel = recommendationGroups.map((group) => MUSCLE_LABELS[group]).join(" + ");
+  const heroExercise = data.exercises.find(
+    (exercise) => !exercise.isArchived && templateMatchesSelected(exercise, recommendation.primaryGroups),
+  );
 
   return (
     <div className="page dashboard-page">
@@ -63,6 +65,19 @@ export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession
 
       <section className="panel">
         <div className="section-title">
+          <h2>今日任务</h2>
+          <span>素材图 + 身体状态</span>
+        </div>
+        <DashboardTrainingVisual
+          heroExercise={heroExercise}
+          lastTrainedMap={lastTrainedMap}
+          recommendation={recommendation}
+          onStart={onQuickStart}
+        />
+      </section>
+
+      <section className="panel">
+        <div className="section-title">
           <h2>最近三次</h2>
           <button className="text-link" type="button" onClick={onOpenHistory}>
             查看全部
@@ -86,17 +101,6 @@ export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession
         ) : (
           <EmptyState title="还没有训练记录" actionLabel="开始训练" onAction={() => onQuickStart([])} />
         )}
-      </section>
-
-      <section className="panel">
-        <div className="section-title">
-          <h2>身体状态</h2>
-          <span>了解颜色含义 ⓘ</span>
-        </div>
-        <div className="dashboard-body-card">
-          <BodyTrainingMap lastTrainedMap={lastTrainedMap} />
-          <TrainingRecommendationCard recommendation={recommendation} onStart={onQuickStart} variant="dashboard" />
-        </div>
       </section>
     </div>
   );

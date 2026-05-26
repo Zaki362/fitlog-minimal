@@ -1512,6 +1512,125 @@ body {
   min-height: 178px;
 }
 
+.dashboard-visual-card {
+  display: grid;
+  gap: 10px;
+  overflow: hidden;
+  padding: 10px;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: 0 12px 30px rgba(17, 17, 17, 0.055);
+}
+
+.dashboard-visual-card__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.dashboard-visual-card__art {
+  position: relative;
+  display: flex;
+  min-height: 156px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(17, 17, 17, 0.06);
+  border-radius: 8px;
+  background: #fbfcf8;
+}
+
+.dashboard-visual-card__art::after {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  left: 16px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.06);
+  content: "";
+}
+
+.dashboard-visual-card__art > span {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
+.dashboard-visual-card__art .exercise-illustration {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-visual-card__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+}
+
+.dashboard-visual-card__copy h2 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 950;
+  line-height: 1.08;
+}
+
+.dashboard-visual-card__copy p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dashboard-visual-card__chips {
+  gap: 6px;
+}
+
+.dashboard-visual-card__button {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.dashboard-visual-card__status {
+  display: grid;
+  grid-template-columns: 102px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: #f6f7f2;
+}
+
+.dashboard-visual-card__status > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.dashboard-visual-card__status strong {
+  font-size: 15px;
+}
+
+.dashboard-visual-card__status span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .body-map {
   min-height: 270px;
   padding: 12px;
@@ -1556,6 +1675,46 @@ body {
 
 .body-map__legend span {
   font-size: 11px;
+}
+
+.body-map--compact {
+  min-height: 92px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.body-map--compact svg {
+  height: 96px;
+  min-height: 72px;
+}
+
+.body-map--compact .body-map__legend {
+  min-height: 24px;
+  padding-top: 2px;
+}
+
+.body-map--compact .body-map__legend strong {
+  font-size: 12px;
+}
+
+.body-map--compact .body-map__legend span {
+  font-size: 10px;
+}
+
+.dashboard-visual-card__status .body-map--compact {
+  width: 148px;
+  justify-self: end;
+}
+
+.dashboard-visual-card__status .body-map--compact svg {
+  height: 112px;
+  min-height: 0;
+}
+
+.dashboard-visual-card__status .body-map--compact .body-map__legend {
+  display: none;
 }
 
 .recommendation-card {
@@ -2086,6 +2245,11 @@ body {
   max-height: 210px;
 }
 
+.exercise-illustration--hero {
+  width: min(100%, 190px);
+  height: 140px;
+}
+
 .exercise-illustration--image {
   object-fit: contain;
   filter: saturate(0.92) contrast(1.05);
@@ -2098,6 +2262,14 @@ img.exercise-illustration--card {
 
 img.exercise-illustration--detail {
   height: 190px;
+}
+
+img.exercise-illustration--hero {
+  width: 100%;
+  height: 146px;
+  object-fit: contain;
+  transform: none;
+  transform-origin: center;
 }
 
 .exercise-illustration__line,
