@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { EmptyState } from "../components/EmptyState";
+import { ExerciseIllustration } from "../components/ExerciseIllustration";
 import { MuscleChip } from "../components/MuscleChip";
 import { getExerciseProgress } from "../lib/stats";
 import { formatDateCN } from "../lib/date";
@@ -146,11 +147,16 @@ export function ExerciseDetailPage({ data, exerciseId, notify, onBack, onSaveExe
             </label>
           </div>
         ) : (
-          <>
-            <MuscleChip group={exercise.muscleGroup} />
-            <h2>{formatPlan(exercise)}</h2>
-            {exercise.notes ? <p>{exercise.notes}</p> : <p className="muted">暂无备注</p>}
-          </>
+          <div className="exercise-detail-hero">
+            <div className="exercise-detail-hero__art">
+              <ExerciseIllustration exercise={exercise} size="detail" />
+            </div>
+            <div>
+              <MuscleChip group={exercise.muscleGroup} />
+              <h2>{formatPlan(exercise)}</h2>
+              {exercise.notes ? <p>{exercise.notes}</p> : <p className="muted">暂无备注</p>}
+            </div>
+          </div>
         )}
       </section>
 

@@ -1,6 +1,7 @@
 import type { ExerciseTemplate } from "../types";
 import { MUSCLE_LABELS } from "../types";
 import { formatPlan } from "../lib/workout";
+import { ExerciseIllustration } from "./ExerciseIllustration";
 
 type ExerciseCardProps = {
   exercise: ExerciseTemplate;
@@ -10,19 +11,6 @@ type ExerciseCardProps = {
   onUpdateWeight: () => void;
   onArchive: () => void;
 };
-
-function ExerciseThumb({ group }: { group: ExerciseTemplate["muscleGroup"] }) {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      <path className="exercise-thumb__body" d="M31 9a6 6 0 1 1 0 12 6 6 0 0 1 0-12Zm-8 16h16l4 16-7 4-1 12h-8l-1-12-7-4Z" />
-      <path
-        className={`exercise-thumb__focus exercise-thumb__focus--${group}`}
-        d="M23 26h16l2.5 10.5-5.5 3.2-1.2 9.3h-7.6L26 39.7l-5.5-3.2Z"
-      />
-      <path className="exercise-thumb__line" d="M19 28 8 22M43 28l11-6M27 58h-9M36 58h9" />
-    </svg>
-  );
-}
 
 export function ExerciseCard({
   exercise,
@@ -37,7 +25,7 @@ export function ExerciseCard({
       <button className="card-hit" type="button" onClick={onOpen} aria-label={`查看 ${exercise.name}`} />
       <div className="exercise-card__main">
         <div className="exercise-thumb">
-          <ExerciseThumb group={exercise.muscleGroup} />
+          <ExerciseIllustration exercise={exercise} />
         </div>
         <div className="exercise-card__copy">
           <h3>{exercise.name}</h3>
