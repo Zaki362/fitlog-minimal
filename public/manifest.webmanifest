@@ -1,0 +1,17 @@
+{
+  "name": "练一下 / FitLog Minimal",
+  "short_name": "练一下",
+  "description": "个人极简健身记录 App",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F7F2",
+  "theme_color": "#B8FF3C",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
