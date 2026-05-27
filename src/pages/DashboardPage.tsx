@@ -17,12 +17,29 @@ import type { AppData, MuscleGroup, WorkoutSession } from "../types";
 type DashboardPageProps = {
   data: AppData;
   onQuickStart: (groups: MuscleGroup[]) => void;
+  onOpenCalendar: () => void;
   onOpenHistory: () => void;
   onOpenSession: (session: WorkoutSession) => void;
   onOpenSettings: () => void;
 };
 
-export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession, onOpenSettings }: DashboardPageProps) {
+function CalendarStatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="5.5" width="16" height="15" rx="3" />
+      <path d="M8 3.5v4M16 3.5v4M4 10h16M8 14h2.5M13.5 14H16M8 17h5.5" />
+    </svg>
+  );
+}
+
+export function DashboardPage({
+  data,
+  onQuickStart,
+  onOpenCalendar,
+  onOpenHistory,
+  onOpenSession,
+  onOpenSettings,
+}: DashboardPageProps) {
   const recent = getRecentSessions(data, 3);
   const recommendation = getTrainingRecommendation(data);
   const lastTrainedMap = getLastTrainedDateByMuscleGroup(data);
@@ -48,7 +65,14 @@ export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession
       <section className="stat-grid stat-grid--compact" aria-label="训练统计">
         <StatCard label="本周训练" value={getThisWeekWorkoutCount(data)} hint="次" />
         <StatCard label="本月训练" value={getThisMonthWorkoutCount(data)} hint="次" />
-        <StatCard label="总训练" value={getTotalWorkoutCount(data)} hint="次" />
+        <StatCard
+          label="总训练"
+          value={getTotalWorkoutCount(data)}
+          hint="次"
+          description="点击查看日历"
+          icon={<CalendarStatIcon />}
+          onClick={onOpenCalendar}
+        />
       </section>
 
       <section className="dashboard-start">

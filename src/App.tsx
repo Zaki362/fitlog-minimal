@@ -8,6 +8,7 @@ import { HistoryPage } from "./pages/HistoryPage";
 import { SessionDetailPage } from "./pages/SessionDetailPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { StartWorkoutPage as StartWorkoutView } from "./pages/StartWorkoutPage";
+import { TrainingCalendarPage } from "./pages/TrainingCalendarPage";
 import { clearData, loadData, resetData, saveData } from "./lib/storage";
 import { loadCloudSyncSettings, pushCloudData, saveCloudSyncSettings } from "./lib/cloudSync";
 import { createId } from "./lib/workout";
@@ -29,8 +30,9 @@ export type MainTab = "dashboard" | "start" | "history" | "exercises";
 type View =
   | { name: MainTab }
   | { name: "active"; draft: ActiveWorkoutDraft }
-  | { name: "session-detail"; sessionId: string }
+  | { name: "session-detail"; sessionId: string; backTo?: "history" | "calendar" }
   | { name: "exercise-detail"; exerciseId: string }
+  | { name: "training-calendar" }
   | { name: "settings" };
 
 type Toast = {
@@ -52,6 +54,9 @@ function activeTabFromView(view: View): MainTab {
   }
   if (view.name === "exercise-detail") {
     return "exercises";
+  }
+  if (view.name === "training-calendar") {
+    return "dashboard";
   }
   if (view.name === "settings") {
     return "dashboard";
@@ -353,10 +358,11 @@ export default function App() {
   }
 
   return (
-    <AppShell activeTab={activeTab} hideNav={view.name === "active"} onNavigate={navigate}>
+    <AppShell activeTab={activeTab} hideNav={view.name === "active" || view.name === "training-calendar"} onNavigate={navigate}>
       {view.name === "dashboard" ? (
         <DashboardPage
           data={data}
+          onOpenCalendar={() => setView({ name: "training-calendar" })}
           onOpenHistory={() => setView({ name: "history" })}
           onOpenSettings={() => setView({ name: "settings" })}
           onOpenSession={(session) => setView({ name: "session-detail", sessionId: session.id })}
@@ -400,10 +406,30 @@ export default function App() {
           data={data}
           sessionId={view.sessionId}
           notify={notify}
-          onBack={() => setView({ name: "history" })}
+          onBack={() => {
+            if (view.backTo === "calendar") {
+              setView({ name: "training-calendar" });
+              return;
+            }
+            setView({ name: "history" });
+          }}
           onDeleteSession={deleteSession}
           onUpdateSession={updateSession}
           onUpdateTemplateFromExercise={updateTemplateFromExercise}
+        />
+      ) : null}
+
+      {view.name === "training-calendar" ? (
+        <TrainingCalendarPage
+          data={data}
+          onAddRecord={() => {
+            setStartPreset([]);
+            setView({ name: "start" });
+          }}
+          onBack={() => setView({ name: "dashboard" })}
+          onOpenSession={(session) =>
+            setView({ name: "session-detail", sessionId: session.id, backTo: "calendar" })
+          }
         />
       ) : null}
 
