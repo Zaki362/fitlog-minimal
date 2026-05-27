@@ -51,6 +51,10 @@ const invalidGet = await invoke({ method: "GET", url: "/api/sync?syncId=nope" })
 assert(invalidGet.statusCode === 400, "GET invalid syncId should return 400");
 assert(invalidGet.json().message === "同步 ID 无效", "GET invalid syncId should explain error");
 
+const health = await invoke({ method: "GET", url: "/api/sync?health=1" });
+assert(health.statusCode === 503, "Health without Upstash env should return 503");
+assert(health.json().configured === false, "Health should report missing storage config");
+
 const options = await invoke({ method: "OPTIONS" });
 assert(options.statusCode === 204, "OPTIONS should return 204");
 

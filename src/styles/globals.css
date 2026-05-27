@@ -1064,6 +1064,34 @@ textarea:focus {
   font-size: 14px;
 }
 
+.cloud-health {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 8px;
+}
+
+.cloud-health.is-ok {
+  border-color: rgba(38, 162, 105, 0.28);
+  background: rgba(38, 162, 105, 0.1);
+}
+
+.cloud-health.is-warning {
+  border-color: rgba(255, 122, 69, 0.28);
+  background: rgba(255, 122, 69, 0.08);
+}
+
+.cloud-health strong {
+  font-size: 14px;
+}
+
+.cloud-health span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .cloud-sync-card__toggle {
   min-height: 44px;
   padding: 8px 0;

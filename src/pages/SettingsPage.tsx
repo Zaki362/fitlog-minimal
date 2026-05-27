@@ -1,14 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { exportJson, exportMarkdown, importJson } from "../lib/storage";
 import { todayYmd } from "../lib/date";
 import { downloadTextFile } from "../lib/workout";
 import {
+  checkCloudHealth,
   createSyncSecret,
   deriveSyncSettings,
   pullCloudData,
   pushCloudData,
   saveCloudSyncSettings,
+  type CloudHealth,
   type CloudSyncSettings,
 } from "../lib/cloudSync";
 import type { AppData } from "../types";
@@ -70,6 +72,30 @@ export function SettingsPage({
   const [generatedSecret, setGeneratedSecret] = useState("");
   const [syncBusy, setSyncBusy] = useState<SyncBusyState>(null);
   const [standalone] = useState(isStandalonePwa);
+  const [cloudHealth, setCloudHealth] = useState<CloudHealth | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    void checkCloudHealth()
+      .then((health) => {
+        if (!ignore) {
+          setCloudHealth(health);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setCloudHealth({
+            ok: false,
+            configured: false,
+            storage: "upstash-redis",
+            message: "云同步服务暂不可用",
+          });
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   function persistCloudSettings(next: CloudSyncSettings): CloudSyncSettings {
     const saved = saveCloudSyncSettings(next);
@@ -223,6 +249,10 @@ export function SettingsPage({
           <span>{cloudSettings.syncId ? cloudSettings.syncLabel || "已连接" : "未设置"}</span>
         </div>
         <div className="cloud-sync-card">
+          <div className={`cloud-health ${cloudHealth?.ok ? "is-ok" : "is-warning"}`}>
+            <strong>{cloudHealth?.ok ? "云端服务已就绪" : "云端服务未配置"}</strong>
+            <span>{cloudHealth?.message ?? "正在检查云同步服务..."}</span>
+          </div>
           <label>
             同步码
             <input

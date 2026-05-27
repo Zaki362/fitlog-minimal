@@ -5,11 +5,15 @@ const MAX_BODY_BYTES = 1_000_000;
 
 let redisClient = null;
 
+function hasRedisEnv() {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
 function getRedis() {
   if (redisClient) {
     return redisClient;
   }
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  if (!hasRedisEnv()) {
     throw new Error("云存储未配置：缺少 UPSTASH_REDIS_REST_URL 或 UPSTASH_REDIS_REST_TOKEN");
   }
   redisClient = Redis.fromEnv();
@@ -86,6 +90,15 @@ export default async function handler(request, response) {
   try {
     if (request.method === "GET") {
       const url = new URL(request.url ?? "", "https://fitlog.local");
+      if (url.searchParams.get("health") === "1") {
+        sendJson(response, hasRedisEnv() ? 200 : 503, {
+          ok: hasRedisEnv(),
+          storage: "upstash-redis",
+          configured: hasRedisEnv(),
+          message: hasRedisEnv() ? "云存储已配置" : "云存储未配置：缺少 Upstash Redis 环境变量",
+        });
+        return;
+      }
       const syncId = url.searchParams.get("syncId");
       if (!isSyncId(syncId)) {
         sendJson(response, 400, { message: "同步 ID 无效" });

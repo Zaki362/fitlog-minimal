@@ -21,6 +21,13 @@ export type CloudPushResult = {
   updatedAt: string;
 };
 
+export type CloudHealth = {
+  ok: boolean;
+  configured: boolean;
+  storage: string;
+  message: string;
+};
+
 const emptySettings: CloudSyncSettings = {
   syncId: null,
   syncLabel: "",
@@ -144,5 +151,29 @@ export async function pushCloudData(syncId: string, data: AppData): Promise<Clou
   const body = (await response.json()) as { updatedAt?: unknown };
   return {
     updatedAt: typeof body.updatedAt === "string" ? body.updatedAt : new Date().toISOString(),
+  };
+}
+
+export async function checkCloudHealth(): Promise<CloudHealth> {
+  const response = await fetch("/api/sync?health=1", {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  const body = (await response.json().catch(() => ({}))) as {
+    ok?: unknown;
+    configured?: unknown;
+    storage?: unknown;
+    message?: unknown;
+  };
+  return {
+    ok: Boolean(body.ok && response.ok),
+    configured: Boolean(body.configured),
+    storage: typeof body.storage === "string" ? body.storage : "upstash-redis",
+    message:
+      typeof body.message === "string"
+        ? body.message
+        : response.ok
+          ? "云存储已配置"
+          : "云存储暂不可用",
   };
 }

@@ -79,6 +79,7 @@ assert(serviceWorker.includes('url.pathname.startsWith("/api/")'), "service work
 
 const syncApi = read("api/sync.js");
 assert(syncApi.includes("@upstash/redis"), "sync API should use Upstash Redis");
+assert(syncApi.includes("health"), "sync API should expose a health check");
 assert(syncApi.includes("UPSTASH_REDIS_REST_URL"), "sync API should reference Upstash URL env var");
 assert(syncApi.includes("UPSTASH_REDIS_REST_TOKEN"), "sync API should reference Upstash token env var");
 
