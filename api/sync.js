@@ -5,18 +5,37 @@ const MAX_BODY_BYTES = 1_000_000;
 
 let redisClient = null;
 
+function getRedisConfig() {
+  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (upstashUrl && upstashToken) {
+    return { url: upstashUrl, token: upstashToken, source: "upstash-rest" };
+  }
+
+  const kvUrl = process.env.KV_REST_API_URL;
+  const kvToken = process.env.KV_REST_API_TOKEN;
+  if (kvUrl && kvToken) {
+    return { url: kvUrl, token: kvToken, source: "vercel-kv-rest" };
+  }
+
+  return null;
+}
+
 function hasRedisEnv() {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return Boolean(getRedisConfig());
 }
 
 function getRedis() {
   if (redisClient) {
     return redisClient;
   }
-  if (!hasRedisEnv()) {
-    throw new Error("云存储未配置：缺少 UPSTASH_REDIS_REST_URL 或 UPSTASH_REDIS_REST_TOKEN");
+  const config = getRedisConfig();
+  if (!config) {
+    throw new Error(
+      "云存储未配置：缺少 UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN 或 KV_REST_API_URL/KV_REST_API_TOKEN",
+    );
   }
-  redisClient = Redis.fromEnv();
+  redisClient = new Redis({ url: config.url, token: config.token });
   return redisClient;
 }
 
@@ -91,11 +110,13 @@ export default async function handler(request, response) {
     if (request.method === "GET") {
       const url = new URL(request.url ?? "", "https://fitlog.local");
       if (url.searchParams.get("health") === "1") {
-        sendJson(response, hasRedisEnv() ? 200 : 503, {
-          ok: hasRedisEnv(),
+        const config = getRedisConfig();
+        sendJson(response, config ? 200 : 503, {
+          ok: Boolean(config),
           storage: "upstash-redis",
-          configured: hasRedisEnv(),
-          message: hasRedisEnv() ? "云存储已配置" : "云存储未配置：缺少 Upstash Redis 环境变量",
+          configured: Boolean(config),
+          envSource: config?.source ?? null,
+          message: config ? "云存储已配置" : "云存储未配置：缺少 Upstash Redis 环境变量",
         });
         return;
       }

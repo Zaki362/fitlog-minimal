@@ -82,10 +82,14 @@ assert(syncApi.includes("@upstash/redis"), "sync API should use Upstash Redis");
 assert(syncApi.includes("health"), "sync API should expose a health check");
 assert(syncApi.includes("UPSTASH_REDIS_REST_URL"), "sync API should reference Upstash URL env var");
 assert(syncApi.includes("UPSTASH_REDIS_REST_TOKEN"), "sync API should reference Upstash token env var");
+assert(syncApi.includes("KV_REST_API_URL"), "sync API should reference Vercel KV URL env var");
+assert(syncApi.includes("KV_REST_API_TOKEN"), "sync API should reference Vercel KV token env var");
 
 const envExample = read(".env.example");
 assert(envExample.includes("UPSTASH_REDIS_REST_URL="), ".env.example missing UPSTASH_REDIS_REST_URL");
 assert(envExample.includes("UPSTASH_REDIS_REST_TOKEN="), ".env.example missing UPSTASH_REDIS_REST_TOKEN");
+assert(envExample.includes("KV_REST_API_URL="), ".env.example missing KV_REST_API_URL");
+assert(envExample.includes("KV_REST_API_TOKEN="), ".env.example missing KV_REST_API_TOKEN");
 
 const vercel = JSON.parse(read("vercel.json"));
 assert(vercel.framework === "vite", "vercel.json framework should be vite");

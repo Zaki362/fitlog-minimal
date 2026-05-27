@@ -81,7 +81,7 @@ UPSTASH_REDIS_REST_URL
 UPSTASH_REDIS_REST_TOKEN
 ```
 
-推荐在 Vercel Marketplace 里安装 Upstash Redis 集成，它会自动把环境变量注入 Vercel 项目。配置完成后重新部署。
+推荐在 Vercel Marketplace 里安装 Upstash Redis 集成，它可能会自动注入 `KV_REST_API_URL` / `KV_REST_API_TOKEN`。项目已经兼容这两组变量，二选一即可。配置完成后重新部署。
 完整上线步骤见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
 
 使用方式：

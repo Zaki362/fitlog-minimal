@@ -10,6 +10,7 @@
     "icons": "node scripts/generate-pwa-icons.mjs",
     "smoke:api": "node scripts/smoke-sync-api.mjs",
     "predeploy": "node scripts/check-deploy-readiness.mjs && node scripts/smoke-sync-api.mjs && tsc -b && vite build",
+    "verify:cloud": "node scripts/verify-cloud-sync.mjs",
     "dev:vercel": "vercel dev"
   },
   "dependencies": {

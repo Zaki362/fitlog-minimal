@@ -29,7 +29,14 @@ UPSTASH_REDIS_REST_URL
 UPSTASH_REDIS_REST_TOKEN
 ```
 
-如果是手动创建 Upstash 数据库，就把这两个值手动填到 Vercel Project Settings → Environment Variables。
+如果 Marketplace 注入的是下面这组变量也可以，项目会自动识别：
+
+```text
+KV_REST_API_URL
+KV_REST_API_TOKEN
+```
+
+如果是手动创建 Upstash 数据库，就把 `UPSTASH_*` 这两个值手动填到 Vercel Project Settings → Environment Variables。
 
 ## 3. 部署
 
@@ -84,3 +91,11 @@ npm run dev:vercel
 - 新浏览器或新手机输入同一个同步码可以恢复数据。
 - iPhone Safari 可以添加到主屏幕。
 - 主屏幕打开后没有浏览器地址栏。
+
+可以用脚本检查线上云同步状态：
+
+```bash
+npm run verify:cloud
+```
+
+如果 Upstash 还没有配置，脚本会显示 `configured: false`。配置完成并重新部署后，脚本会执行一次写入/读取闭环验证。

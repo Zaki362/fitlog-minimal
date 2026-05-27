@@ -74,8 +74,8 @@ const validBody = JSON.stringify({
 const missingEnv = await invoke({ method: "PUT", body: validBody });
 assert(missingEnv.statusCode === 503, "PUT without Upstash env should return 503");
 assert(
-  String(missingEnv.json().message).includes("UPSTASH_REDIS_REST_URL"),
-  "Missing env error should mention Upstash config",
+  String(missingEnv.json().message).includes("KV_REST_API_URL"),
+  "Missing env error should mention supported Redis config names",
 );
 
 console.log("sync api smoke ok");
