@@ -3,9 +3,10 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { ExerciseCard } from "../components/ExerciseCard";
 import { MuscleChip } from "../components/MuscleChip";
+import { TrainingPlanEditor } from "../components/TrainingPlanEditor";
 import { compareYmdDesc, formatDateCN } from "../lib/date";
 import { createId, normalizeOptionalNumber } from "../lib/workout";
-import type { AppData, ExerciseTemplate, ExerciseUnit, MuscleGroup } from "../types";
+import type { AppData, ExerciseTemplate, ExerciseUnit, MuscleGroup, TrainingPlan } from "../types";
 import { MUSCLE_LABELS, MUSCLE_ORDER } from "../types";
 
 type ExerciseLibraryPageProps = {
@@ -14,9 +15,12 @@ type ExerciseLibraryPageProps = {
   onOpenExercise: (exerciseId: string) => void;
   onSaveExercise: (exercise: ExerciseTemplate) => void;
   onArchiveExercise: (exerciseId: string) => void;
+  onSaveTrainingPlan: (plan: TrainingPlan) => void;
+  onResetTrainingPlan: () => void;
 };
 
 type Filter = "all" | MuscleGroup;
+type LibraryMode = "library" | "plan";
 
 type ExerciseForm = {
   id?: string;
@@ -63,7 +67,10 @@ export function ExerciseLibraryPage({
   onOpenExercise,
   onSaveExercise,
   onArchiveExercise,
+  onSaveTrainingPlan,
+  onResetTrainingPlan,
 }: ExerciseLibraryPageProps) {
+  const [mode, setMode] = useState<LibraryMode>("library");
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -191,77 +198,108 @@ export function ExerciseLibraryPage({
         <div>
           <h1>动作库</h1>
         </div>
-        <button className="button button--primary" type="button" onClick={openNew}>
-          + 新增动作
-        </button>
+        {mode === "library" ? (
+          <button className="button button--primary" type="button" onClick={openNew}>
+            + 新增动作
+          </button>
+        ) : null}
       </header>
 
-      <section className="panel">
-        <label className="search-field">
-          <span aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="m15.5 15.5 4 4" />
-            </svg>
-          </span>
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="搜索动作名称"
-            aria-label="搜索动作名称"
-          />
-        </label>
-        <div className="filter-row">
-          {filters.map((option) =>
-            option === "all" ? (
-              <button
-                className={`muscle-chip ${filter === "all" ? "is-selected" : ""}`}
-                key={option}
-                type="button"
-                onClick={() => setFilter("all")}
-              >
-                全部
-              </button>
-            ) : (
-              <MuscleChip
-                group={option}
-                key={option}
-                selected={filter === option}
-                onClick={() => setFilter(option)}
+      <div className="library-tabs" role="tablist" aria-label="动作库视图">
+        <button
+          className={mode === "library" ? "is-selected" : ""}
+          role="tab"
+          type="button"
+          aria-selected={mode === "library"}
+          onClick={() => setMode("library")}
+        >
+          动作库
+        </button>
+        <button
+          className={mode === "plan" ? "is-selected" : ""}
+          role="tab"
+          type="button"
+          aria-selected={mode === "plan"}
+          onClick={() => setMode("plan")}
+        >
+          训练计划
+        </button>
+      </div>
+
+      {mode === "plan" ? (
+        <TrainingPlanEditor data={data} onSavePlan={onSaveTrainingPlan} onResetPlan={onResetTrainingPlan} />
+      ) : (
+        <>
+          <section className="panel">
+            <label className="search-field">
+              <span aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="10.5" cy="10.5" r="6.5" />
+                  <path d="m15.5 15.5 4 4" />
+                </svg>
+              </span>
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="搜索动作名称"
+                aria-label="搜索动作名称"
               />
-            ),
-          )}
-        </div>
-      </section>
-
-      <section className="exercise-list">
-        {visibleExercises.length ? (
-          groupedExercises.map((section) => (
-            <div className="exercise-section" key={section.group}>
-              <div className="section-title section-title--compact">
-                <h2>
-                  {MUSCLE_LABELS[section.group]} ({section.exercises.length})
-                </h2>
-              </div>
-              {section.exercises.map((exercise) => (
-                <ExerciseCard
-                  exercise={exercise}
-                  key={exercise.id}
-                  lastDate={lastDates.get(exercise.id) ? formatDateCN(lastDates.get(exercise.id) as string) : undefined}
-                  onOpen={() => onOpenExercise(exercise.id)}
-                  onEdit={() => openEdit(exercise)}
-                  onUpdateWeight={() => quickUpdateWeight(exercise)}
-                  onArchive={() => setPendingArchive(exercise)}
-                />
-              ))}
+            </label>
+            <div className="filter-row">
+              {filters.map((option) =>
+                option === "all" ? (
+                  <button
+                    className={`muscle-chip ${filter === "all" ? "is-selected" : ""}`}
+                    key={option}
+                    type="button"
+                    onClick={() => setFilter("all")}
+                  >
+                    全部
+                  </button>
+                ) : (
+                  <MuscleChip
+                    group={option}
+                    key={option}
+                    selected={filter === option}
+                    onClick={() => setFilter(option)}
+                  />
+                ),
+              )}
             </div>
-          ))
-        ) : (
-          <EmptyState title="没有动作" actionLabel="新增动作" onAction={openNew} />
-        )}
-      </section>
+          </section>
 
-      {formOpen ? (
+          <section className="exercise-list">
+            {visibleExercises.length ? (
+              groupedExercises.map((section) => (
+                <div className="exercise-section" key={section.group}>
+                  <div className="section-title section-title--compact">
+                    <h2>
+                      {MUSCLE_LABELS[section.group]} ({section.exercises.length})
+                    </h2>
+                  </div>
+                  {section.exercises.map((exercise) => (
+                    <ExerciseCard
+                      exercise={exercise}
+                      key={exercise.id}
+                      lastDate={
+                        lastDates.get(exercise.id) ? formatDateCN(lastDates.get(exercise.id) as string) : undefined
+                      }
+                      onOpen={() => onOpenExercise(exercise.id)}
+                      onEdit={() => openEdit(exercise)}
+                      onUpdateWeight={() => quickUpdateWeight(exercise)}
+                      onArchive={() => setPendingArchive(exercise)}
+                    />
+                  ))}
+                </div>
+              ))
+            ) : (
+              <EmptyState title="没有动作" actionLabel="新增动作" onAction={openNew} />
+            )}
+          </section>
+        </>
+      )}
+
+      {mode === "library" && formOpen ? (
         <div className="sheet-backdrop" role="presentation">
           <section className="sheet" role="dialog" aria-modal="true" aria-labelledby="exercise-form-title">
             <div className="section-title">

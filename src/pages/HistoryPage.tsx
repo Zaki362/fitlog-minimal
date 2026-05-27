@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
-import { MuscleChip } from "../components/MuscleChip";
-import { compareYmdDesc, formatDateCN } from "../lib/date";
-import { formatSessionLine } from "../lib/workout";
+import { HistorySessionCard } from "../components/HistorySessionCard";
+import { compareYmdDesc, parseYmd } from "../lib/date";
 import type { AppData, MuscleGroup, WorkoutSession } from "../types";
 import { MUSCLE_LABELS } from "../types";
 
@@ -19,15 +18,55 @@ const filterOptions: Array<"all" | MuscleGroup> = [
   "chest",
   "shoulder",
   "abs",
-  "arms",
   "legs",
   "cardio",
   "custom",
 ];
 
+type MonthGroup = {
+  key: string;
+  label: string;
+  sessions: WorkoutSession[];
+};
+
+function monthKey(date: string): string {
+  const parsed = parseYmd(date);
+  if (Number.isNaN(parsed.getTime())) {
+    return date.slice(0, 7) || "unknown";
+  }
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(date: string): string {
+  const parsed = parseYmd(date);
+  if (Number.isNaN(parsed.getTime())) {
+    return date.slice(0, 7) || "未知月份";
+  }
+  return `${parsed.getFullYear()}年${parsed.getMonth() + 1}月`;
+}
+
+function groupSessionsByMonth(sessions: WorkoutSession[]): MonthGroup[] {
+  const groups = new Map<string, MonthGroup>();
+  sessions.forEach((session) => {
+    const key = monthKey(session.date);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.sessions.push(session);
+      return;
+    }
+    groups.set(key, {
+      key,
+      label: monthLabel(session.date),
+      sessions: [session],
+    });
+  });
+  return [...groups.values()];
+}
+
 export function HistoryPage({ data, onOpenSession, onDeleteSession }: HistoryPageProps) {
   const [filter, setFilter] = useState<"all" | MuscleGroup>("all");
   const [pendingDelete, setPendingDelete] = useState<WorkoutSession | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const sessions = useMemo(() => {
     return [...data.sessions]
@@ -50,22 +89,25 @@ export function HistoryPage({ data, onOpenSession, onDeleteSession }: HistoryPag
       .sort((a, b) => compareYmdDesc(a.date, b.date));
   }, [data.sessions, filter]);
 
+  const monthGroups = useMemo(() => groupSessionsByMonth(sessions), [sessions]);
+
   return (
-    <div className="page">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">记录</p>
-          <h1>训练时间线</h1>
+    <div className="page history-page">
+      <header className="history-header">
+        <p>记录</p>
+        <div className="history-header__title-row">
+          <h1>训练记录</h1>
+          <span>{sessions.length}条</span>
         </div>
-        <span className="counter-pill">{sessions.length} 条</span>
+        <small>按时间查看你的训练节奏</small>
       </header>
 
-      <section className="panel">
-        <div className="filter-row">
+      <section className="history-filter" aria-label="按部位筛选记录">
+        <div className="history-filter-row">
           {filterOptions.map((option) =>
             option === "all" ? (
               <button
-                className={`muscle-chip ${filter === "all" ? "is-selected" : ""}`}
+                className={`history-filter-chip ${filter === "all" ? "is-selected" : ""}`}
                 key={option}
                 type="button"
                 onClick={() => setFilter("all")}
@@ -73,47 +115,46 @@ export function HistoryPage({ data, onOpenSession, onDeleteSession }: HistoryPag
                 全部
               </button>
             ) : (
-              <MuscleChip
-                group={option}
+              <button
+                className={`history-filter-chip ${filter === option ? "is-selected" : ""}`}
                 key={option}
-                selected={filter === option}
+                type="button"
                 onClick={() => setFilter(option)}
-              />
+              >
+                {MUSCLE_LABELS[option]}
+              </button>
             ),
           )}
         </div>
       </section>
 
-      <section className="session-list">
-        {sessions.length ? (
-          sessions.map((session) => (
-            <article className="history-card" key={session.id}>
-              <button className="card-hit" type="button" onClick={() => onOpenSession(session)} />
-              <div className="card-row">
-                <div>
-                  <p className="eyebrow">{formatDateCN(session.date)}</p>
-                  <h3>{formatSessionLine(session)}</h3>
-                </div>
-                <span className="counter-pill">{session.exercises.filter((item) => item.completed).length}</span>
+      <section className="history-timeline">
+        {monthGroups.length ? (
+          monthGroups.map((group) => (
+            <section className="history-month" key={group.key} aria-labelledby={`history-${group.key}`}>
+              <div className="history-month__header">
+                <h2 id={`history-${group.key}`}>{group.label}</h2>
+                <span>{group.sessions.length}次训练</span>
               </div>
-              <div className="chip-line">
-                {session.muscleGroups.map((group) => (
-                  <MuscleChip group={group} key={group} muted />
+              <div className="history-month__list">
+                {group.sessions.map((session) => (
+                  <HistorySessionCard
+                    key={session.id}
+                    session={session}
+                    menuOpen={openMenuId === session.id}
+                    onToggleMenu={() => setOpenMenuId((current) => (current === session.id ? null : session.id))}
+                    onOpen={() => {
+                      setOpenMenuId(null);
+                      onOpenSession(session);
+                    }}
+                    onDelete={() => {
+                      setOpenMenuId(null);
+                      setPendingDelete(session);
+                    }}
+                  />
                 ))}
               </div>
-              <div className="inline-actions">
-                <button className="button button--secondary" type="button" onClick={() => onOpenSession(session)}>
-                  详情 / 编辑
-                </button>
-                <button
-                  className="button button--danger"
-                  type="button"
-                  onClick={() => setPendingDelete(session)}
-                >
-                  删除
-                </button>
-              </div>
-            </article>
+            </section>
           ))
         ) : (
           <EmptyState title="没有符合筛选的记录" />

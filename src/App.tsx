@@ -12,6 +12,7 @@ import { clearData, loadData, resetData, saveData } from "./lib/storage";
 import { loadCloudSyncSettings, pushCloudData, saveCloudSyncSettings } from "./lib/cloudSync";
 import { createId } from "./lib/workout";
 import { todayYmd } from "./lib/date";
+import { getDefaultTrainingPlan } from "./lib/trainingPlan";
 import type {
   ActiveWorkoutDraft,
   AppData,
@@ -19,6 +20,7 @@ import type {
   MuscleGroup,
   ProgressUpdate,
   SessionExercise,
+  TrainingPlan,
   WorkoutSession,
 } from "./types";
 
@@ -257,6 +259,26 @@ export default function App() {
     notify("动作已归档");
   }
 
+  function saveTrainingPlan(trainingPlan: TrainingPlan) {
+    commit((current) => ({
+      ...current,
+      trainingPlan,
+    }));
+    notify("训练计划已更新");
+  }
+
+  function resetTrainingPlan() {
+    const ok = window.confirm("恢复默认训练计划？当前计划设置会被覆盖。");
+    if (!ok) {
+      return;
+    }
+    commit((current) => ({
+      ...current,
+      trainingPlan: getDefaultTrainingPlan(new Date().toISOString()),
+    }));
+    notify("已恢复默认训练计划");
+  }
+
   function updateTemplateFromExercise(session: WorkoutSession, exercise: SessionExercise) {
     if (!exercise.exerciseTemplateId) {
       notify("这个动作没有关联模板", "warning");
@@ -392,6 +414,8 @@ export default function App() {
           onArchiveExercise={archiveExercise}
           onOpenExercise={(exerciseId) => setView({ name: "exercise-detail", exerciseId })}
           onSaveExercise={saveExercise}
+          onSaveTrainingPlan={saveTrainingPlan}
+          onResetTrainingPlan={resetTrainingPlan}
         />
       ) : null}
 

@@ -48,7 +48,7 @@ export function DashboardTrainingVisual({
           </div>
           <p>{recommendation.reason}</p>
           <button className="button button--primary dashboard-visual-card__button" type="button" onClick={() => onStart(groups)}>
-            按建议开练
+            {recommendation.ctaLabel ?? "按建议开练"}
           </button>
         </div>
       </div>

@@ -5,7 +5,7 @@ import { TrainingRecommendationCard } from "../components/TrainingRecommendation
 import { todayYmd } from "../lib/date";
 import { getTrainingRecommendation } from "../lib/stats";
 import { buildWorkoutTitle, createId, templateMatchesSelected, templateToSessionExercise } from "../lib/workout";
-import type { ActiveWorkoutDraft, AppData, CardioEntry, MuscleGroup } from "../types";
+import type { ActiveWorkoutDraft, AppData, CardioEntry, ExerciseTemplate, MuscleGroup } from "../types";
 import { MUSCLE_LABELS } from "../types";
 
 type StartWorkoutPageProps = {
@@ -18,17 +18,10 @@ type StartWorkoutPageProps = {
 
 const groupOptions: MuscleGroup[] = ["back", "chest", "shoulder", "abs", "arms", "legs", "cardio"];
 
-const combos: Array<{ label: string; groups: MuscleGroup[]; tone: string; mark: string }> = [
-  { label: "背 + 腹", groups: ["back", "abs"], tone: "blue", mark: "背" },
-  { label: "胸 + 腹", groups: ["chest", "abs"], tone: "red", mark: "胸" },
-  { label: "肩 + 腹", groups: ["shoulder", "abs"], tone: "orange", mark: "肩" },
-  { label: "腿部", groups: ["legs"], tone: "green", mark: "腿" },
-  { label: "腹 + 有氧", groups: ["abs", "cardio"], tone: "purple", mark: "腹" },
-];
-
-function sameGroups(a: MuscleGroup[], b: MuscleGroup[]): boolean {
-  return a.length === b.length && a.every((group) => b.includes(group));
-}
+type PreviewGroup = {
+  group: MuscleGroup;
+  exercises: ExerciseTemplate[];
+};
 
 export function StartWorkoutPage({
   data,
@@ -38,6 +31,7 @@ export function StartWorkoutPage({
   onOpenExerciseLibrary,
 }: StartWorkoutPageProps) {
   const [selected, setSelected] = useState<MuscleGroup[]>(initialGroups);
+  const [collapsedGroups, setCollapsedGroups] = useState<MuscleGroup[]>([]);
   const recommendation = useMemo(() => getTrainingRecommendation(data), [data]);
 
   useEffect(() => {
@@ -52,10 +46,17 @@ export function StartWorkoutPage({
     [data.exercises, selected],
   );
 
-  const selectedLabel = selected.length ? selected.map((group) => MUSCLE_LABELS[group]).join(" + ") : "还没选择";
+  const previewGroups = useMemo<PreviewGroup[]>(() => {
+    return selected.map((group) => ({
+        group,
+        exercises: data.exercises
+          .filter((exercise) => !exercise.isArchived)
+          .filter((exercise) => templateMatchesSelected(exercise, [group])),
+      }));
+  }, [data.exercises, selected]);
+
   const hasOnlyCardio = selected.length === 1 && selected.includes("cardio");
   const canStart = selected.length > 0 && (previewExercises.length > 0 || selected.includes("cardio"));
-  const noTemplateForSelection = selected.length > 0 && previewExercises.length === 0 && !hasOnlyCardio;
 
   function toggleGroup(group: MuscleGroup) {
     setSelected((current) =>
@@ -65,6 +66,13 @@ export function StartWorkoutPage({
 
   function useGroups(groups: MuscleGroup[]) {
     setSelected(groups);
+    setCollapsedGroups([]);
+  }
+
+  function togglePreviewGroup(group: MuscleGroup) {
+    setCollapsedGroups((current) =>
+      current.includes(group) ? current.filter((item) => item !== group) : [...current, group],
+    );
   }
 
   function startWorkout() {
@@ -114,25 +122,6 @@ export function StartWorkoutPage({
 
       <section className="panel">
         <div className="section-title">
-          <h2>常用组合</h2>
-        </div>
-        <div className="combo-grid">
-          {combos.map((combo) => (
-            <button
-              className={`combo-button ${sameGroups(combo.groups, selected) ? "is-selected" : ""}`}
-              key={combo.label}
-              type="button"
-              onClick={() => useGroups(combo.groups)}
-            >
-              <span className={`combo-button__icon combo-button__icon--${combo.tone}`}>{combo.mark}</span>
-              <span>{combo.label}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="section-title">
           <h2>自选部位</h2>
         </div>
         <div className="chip-grid">
@@ -152,33 +141,53 @@ export function StartWorkoutPage({
           <div>
             <h2>动作预览</h2>
           </div>
-          <span>
-            预计 {previewExercises.length + (selected.includes("cardio") ? 1 : 0)} 个动作 ›
-          </span>
+          <span>共 {previewExercises.length} 个动作</span>
         </div>
 
         {selected.length ? (
-          <>
-            <p className="preview-title">{selectedLabel}</p>
-            {previewExercises.length ? (
-              <ol className="preview-list">
-                {previewExercises.slice(0, 5).map((exercise) => (
-                  <li key={exercise.id}>{exercise.name}</li>
-                ))}
-                {previewExercises.length > 5 ? <li>...</li> : null}
-              </ol>
-            ) : null}
-            {selected.includes("cardio") ? <p className="preview-names">有氧记录</p> : null}
-            {noTemplateForSelection ? (
-              <EmptyState
-                title="这个部位还没有动作，请先去动作库新增动作"
-                actionLabel="去动作库"
-                onAction={onOpenExerciseLibrary}
-              />
-            ) : null}
-          </>
+          <div className="preview-group-list">
+            {previewGroups.map((section) => {
+              const collapsed = collapsedGroups.includes(section.group);
+
+              return (
+                <section className="preview-group" key={section.group}>
+                  <button
+                    className="preview-group__header"
+                    type="button"
+                    onClick={() => togglePreviewGroup(section.group)}
+                    aria-expanded={!collapsed}
+                  >
+                    <span>
+                      {MUSCLE_LABELS[section.group]}（{section.exercises.length}）
+                    </span>
+                    <i aria-hidden="true">{collapsed ? "⌄" : "⌃"}</i>
+                  </button>
+
+                  {!collapsed ? (
+                    section.exercises.length ? (
+                      <ol className="preview-group__list">
+                        {section.exercises.map((exercise, index) => (
+                          <li key={exercise.id}>
+                            <span>{index + 1}.</span>
+                            <strong>{exercise.name}</strong>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <div className="preview-group__empty">
+                        <p>该部位还没有动作，请先去动作库补充</p>
+                        <button className="button button--secondary" type="button" onClick={onOpenExerciseLibrary}>
+                          去动作库
+                        </button>
+                      </div>
+                    )
+                  ) : null}
+                </section>
+              );
+            })}
+          </div>
         ) : (
-          <EmptyState title="选择一个部位或常用组合" />
+          <EmptyState title="选择一个部位" />
         )}
       </section>
 

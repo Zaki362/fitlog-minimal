@@ -14,10 +14,17 @@ import type {
   ProgressUpdate,
   SessionExercise,
   TrainingRecommendation,
+  TrainingPlanItem,
   UndertrainedGroup,
   WorkoutSession,
 } from "../types";
 import { MUSCLE_LABELS, PRIMARY_MUSCLE_GROUPS } from "../types";
+import {
+  ensureTrainingPlan,
+  formatTrainingPlanReason,
+  getPlanItemForGroup,
+  normalizeTrainingPlanGroup,
+} from "./trainingPlan";
 
 const TRAINING_FRESHNESS_COLORS = {
   veryFresh: "#B8FF3C",
@@ -39,7 +46,11 @@ function groupNameInSentence(group: MuscleGroup): string {
 }
 
 function sessionGroups(session: WorkoutSession): MuscleGroup[] {
-  const groups = new Set<MuscleGroup>(session.muscleGroups);
+  const groups = new Set<MuscleGroup>();
+
+  session.muscleGroups.forEach((group) => {
+    groups.add(normalizeTrainingPlanGroup(group) ?? group);
+  });
 
   if (session.cardio?.length) {
     groups.add("cardio");
@@ -120,7 +131,8 @@ export function getLastTrainedDateByMuscleGroup(data: AppData): Partial<Record<M
 }
 
 export function getDaysSinceLastTrained(group: MuscleGroup, data: AppData, referenceYmd = todayYmd()): number | null {
-  const lastDate = getLastTrainedDateByMuscleGroup(data)[group];
+  const normalizedGroup = normalizeTrainingPlanGroup(group) ?? group;
+  const lastDate = getLastTrainedDateByMuscleGroup(data)[normalizedGroup];
   if (!lastDate) {
     return null;
   }
@@ -169,63 +181,129 @@ export function formatLastTrainedStatus(
   return `${days} 天未练`;
 }
 
-export function getTrainingRecommendation(data: AppData, referenceYmd = todayYmd()): TrainingRecommendation {
-  const primaryGroups: MuscleGroup[] = ["legs", "chest", "back", "shoulder", "arms"];
-  const lastDates = getLastTrainedDateByMuscleGroup(data);
-  const counts30 = getMuscleGroupCounts(data, 30);
+type RecommendationCandidate = {
+  group: MuscleGroup;
+  item: TrainingPlanItem;
+  daysSince: number | null;
+  dueRatio: number | null;
+  score: number;
+  isDue: boolean;
+  isOverdue: boolean;
+};
 
-  if (!lastDates.legs) {
-    return {
-      primaryGroups: ["legs"],
-      title: "建议练腿",
-      reason: "腿部还没有近期训练记录，可以安排一次腿部训练。",
-      ctaLabel: "按建议开练",
-    };
-  }
-
-  const rankedByStaleness = primaryGroups
-    .map((group) => ({
-      group,
-      daysSince: lastDates[group] ? diffDays(lastDates[group] as string, referenceYmd) : Number.POSITIVE_INFINITY,
-    }))
-    .sort((a, b) => b.daysSince - a.daysSince);
-  const stale = rankedByStaleness.find((item) => item.daysSince > 14 || !Number.isFinite(item.daysSince));
-
-  if (stale) {
-    const secondaryGroups =
-      ["chest", "back", "shoulder"].includes(stale.group) && getDaysSinceLastTrained("abs", data, referenceYmd) !== null
-        ? (["abs"] as MuscleGroup[])
-        : undefined;
-
-    return {
-      primaryGroups: [stale.group],
-      secondaryGroups,
-      title: `建议练${MUSCLE_LABELS[stale.group]}`,
-      reason: `${groupNameInSentence(stale.group)}已经 ${stale.daysSince} 天没练，可以安排一次${groupNameInSentence(
-        stale.group,
-      )}训练。`,
-      ctaLabel: "按建议开练",
-    };
-  }
-
-  const lightOption = primaryGroups
-    .map((group) => ({
-      group,
-      count: counts30[group] ?? 0,
-      daysSince: lastDates[group] ? diffDays(lastDates[group] as string, referenceYmd) : 999,
-    }))
-    .sort((a, b) => a.count - b.count || b.daysSince - a.daysSince)[0];
-
-  const primary = lightOption?.group ?? "shoulder";
-  const secondaryGroups =
-    ["chest", "back", "shoulder"].includes(primary) && (counts30.abs ?? 0) <= 2 ? (["abs"] as MuscleGroup[]) : undefined;
+function buildCandidate(group: MuscleGroup, item: TrainingPlanItem, data: AppData, referenceYmd: string): RecommendationCandidate {
+  const daysSince = getDaysSinceLastTrained(group, data, referenceYmd);
+  const dueRatio = daysSince === null ? null : daysSince / item.targetIntervalDays;
+  const score = daysSince === null ? 1000 + item.priority : (dueRatio ?? 0) * 100 + item.priority;
 
   return {
-    primaryGroups: [primary],
-    secondaryGroups,
-    title: "状态不错",
-    reason: `主要部位最近都有训练，可以选择一次较轻松的${groupNameInSentence(primary)}或有氧训练。`,
-    ctaLabel: "按建议开练",
+    group,
+    item,
+    daysSince,
+    dueRatio,
+    score,
+    isDue: daysSince === null || (dueRatio ?? 0) >= 1,
+    isOverdue: daysSince === null || (dueRatio ?? 0) > 1,
+  };
+}
+
+function sortCandidate(a: RecommendationCandidate, b: RecommendationCandidate): number {
+  return b.score - a.score || b.item.priority - a.item.priority;
+}
+
+export function getDueRatio(group: MuscleGroup, data: AppData, referenceYmd = todayYmd()): number | null {
+  const normalized = ensureTrainingPlan(data);
+  const item = getPlanItemForGroup(group, normalized.trainingPlan);
+  const daysSince = getDaysSinceLastTrained(group, data, referenceYmd);
+  if (!item || daysSince === null) {
+    return null;
+  }
+  return daysSince / item.targetIntervalDays;
+}
+
+export function getTrainingRecommendation(data: AppData, referenceYmd = todayYmd()): TrainingRecommendation {
+  const normalized = ensureTrainingPlan(data);
+  const plan = normalized.trainingPlan;
+  const enabledItems = plan?.items.filter((item) => item.enabled && item.role !== "disabled") ?? [];
+
+  const mainCandidates = enabledItems
+    .filter((item) => item.role === "main")
+    .filter((item) => !["arms", "abs", "cardio", "custom"].includes(item.muscleGroup))
+    .map((item) => buildCandidate(item.muscleGroup, item, normalized, referenceYmd))
+    .filter((candidate) => candidate.daysSince === null || candidate.daysSince > 2)
+    .filter((candidate) => candidate.isDue)
+    .sort(sortCandidate);
+
+  const accessoryCandidates = enabledItems
+    .filter((item) => item.role === "accessory")
+    .map((item) => buildCandidate(item.muscleGroup, item, normalized, referenceYmd))
+    .filter((candidate) => candidate.isDue)
+    .sort(sortCandidate);
+
+  const topMain = mainCandidates[0];
+  if (topMain) {
+    const secondaryCandidates = accessoryCandidates
+      .filter((candidate) => candidate.group !== topMain.group)
+      .slice(0, 1);
+    const secondaryGroups = secondaryCandidates.map((candidate) => candidate.group);
+    const groups = [topMain, ...secondaryCandidates];
+
+    return {
+      primaryGroups: [topMain.group],
+      secondaryGroups,
+      title: `建议练${[topMain.group, ...secondaryGroups].map((group) => MUSCLE_LABELS[group]).join(" + ")}`,
+      reason: `${groups
+        .map((candidate) => formatTrainingPlanReason(candidate.group, candidate.item, candidate.daysSince))
+        .join("；")}。`,
+      status: topMain.isOverdue || secondaryCandidates.some((candidate) => candidate.isOverdue) ? "overdue" : "due",
+      score: topMain.score,
+      generatedAt: referenceYmd,
+      ctaLabel: "按建议开练",
+    };
+  }
+
+  const standaloneAccessories = accessoryCandidates
+    .filter((candidate) => candidate.item.allowStandalone)
+    .slice(0, 2);
+
+  if (standaloneAccessories.length) {
+    const [primary, ...secondary] = standaloneAccessories;
+    const groups = standaloneAccessories.map((candidate) => candidate.group);
+    const isLight = groups.includes("abs") || groups.includes("cardio");
+
+    return {
+      primaryGroups: [primary.group],
+      secondaryGroups: secondary.map((candidate) => candidate.group),
+      title: isLight
+        ? `建议${groups.map((group) => MUSCLE_LABELS[group]).join(" + ")}`
+        : `建议练${groups.map((group) => MUSCLE_LABELS[group]).join(" + ")}`,
+      reason: `${standaloneAccessories
+        .map((candidate) => formatTrainingPlanReason(candidate.group, candidate.item, candidate.daysSince))
+        .join("；")}。`,
+      status: standaloneAccessories.some((candidate) => candidate.isOverdue) ? "overdue" : "due",
+      score: primary.score,
+      generatedAt: referenceYmd,
+      ctaLabel: "按建议开练",
+    };
+  }
+
+  const accessoryOptions = enabledItems
+    .filter((item) => item.role === "accessory" && item.allowStandalone)
+    .map((item) => item.muscleGroup);
+
+  return {
+    primaryGroups: [],
+    secondaryGroups: [],
+    title: accessoryOptions.length ? "今天可以轻量训练" : "今天可以休息",
+    reason: accessoryOptions.length
+      ? `主要部位近期都训练过，今天可以休息或做轻量${accessoryOptions
+          .map((group) => MUSCLE_LABELS[group])
+          .join(" / ")}。`
+      : "主要部位近期都训练过，今天可以休息或自由选择。",
+    status: accessoryOptions.length ? "balanced" : "rest",
+    score: 0,
+    generatedAt: referenceYmd,
+    ctaLabel: "自由选择",
   };
 }
 

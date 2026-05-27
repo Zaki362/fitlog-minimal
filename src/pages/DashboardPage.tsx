@@ -71,8 +71,6 @@ export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession
         />
       </section>
 
-      <BodyHeatmapCard lastTrainedMap={lastTrainedMap} />
-
       <section className="panel">
         <div className="section-title">
           <h2>最近三次</h2>
@@ -99,6 +97,8 @@ export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession
           <EmptyState title="还没有训练记录" actionLabel="开始训练" onAction={() => onQuickStart([])} />
         )}
       </section>
+
+      <BodyHeatmapCard lastTrainedMap={lastTrainedMap} />
     </div>
   );
 }

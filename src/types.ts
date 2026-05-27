@@ -93,20 +93,44 @@ export interface ProgressUpdate {
   createdAt: string;
 }
 
+export type TrainingPlanRole = "main" | "accessory" | "disabled";
+
+export interface TrainingPlanItem {
+  id: string;
+  muscleGroup: MuscleGroup;
+  enabled: boolean;
+  role: TrainingPlanRole;
+  targetIntervalDays: number;
+  priority: number;
+  allowStandalone: boolean;
+  notes?: string;
+  updatedAt: string;
+}
+
+export interface TrainingPlan {
+  version: number;
+  items: TrainingPlanItem[];
+  updatedAt: string;
+}
+
 export interface AppData {
   exercises: ExerciseTemplate[];
   sessions: WorkoutSession[];
   progressUpdates: ProgressUpdate[];
+  trainingPlan?: TrainingPlan;
   version: number;
   updatedAt: string;
 }
 
 export interface TrainingRecommendation {
   primaryGroups: MuscleGroup[];
-  secondaryGroups?: MuscleGroup[];
+  secondaryGroups: MuscleGroup[];
   title: string;
   reason: string;
-  ctaLabel: string;
+  status: "due" | "overdue" | "balanced" | "rest";
+  score: number;
+  generatedAt: string;
+  ctaLabel?: string;
 }
 
 export interface ActiveWorkoutDraft {
@@ -152,7 +176,7 @@ export const MUSCLE_ORDER: MuscleGroup[] = [
   "custom",
 ];
 
-export const PRIMARY_MUSCLE_GROUPS: MuscleGroup[] = ["back", "chest", "shoulder", "arms", "legs"];
+export const PRIMARY_MUSCLE_GROUPS: MuscleGroup[] = ["back", "chest", "shoulder", "legs"];
 
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   easy: "轻松",

@@ -22,8 +22,110 @@ type BodyPartGroupProps = {
   children: ReactNode;
 };
 
+type FigureParts = Partial<Record<HeatmapGroup, string[]>>;
+
 const HEATMAP_GROUPS: HeatmapGroup[] = ["shoulder", "chest", "back", "arms", "abs", "legs"];
 const LEGEND_COLORS = ["#B8FF3C", "#D8FF76", "#E9F8B4", "#E4E8D8", "#DCDDD8", "#EEF0EA"];
+
+const FRONT_BASE = [
+  "M110 8 C126 8 138 24 138 45 C138 66 126 80 110 80 C94 80 82 66 82 45 C82 24 94 8 110 8Z",
+  "M92 77 C99 93 104 101 110 101 C116 101 121 93 128 77 L136 101 C129 112 120 118 110 118 C100 118 91 112 84 101Z",
+  "M80 100 C62 104 48 113 39 129 C27 150 29 181 38 214 C47 246 76 267 99 270 C106 274 114 274 121 270 C144 267 173 246 182 214 C191 181 193 150 181 129 C172 113 158 104 140 100 C133 114 123 121 110 121 C97 121 87 114 80 100Z",
+  "M40 131 C27 148 23 174 28 202 L35 239 C38 255 47 263 57 260 C67 257 70 243 65 226 L59 197 C56 176 61 152 72 136Z",
+  "M180 131 C193 148 197 174 192 202 L185 239 C182 255 173 263 163 260 C153 257 150 243 155 226 L161 197 C164 176 159 152 148 136Z",
+  "M80 267 C93 278 107 280 121 270 L118 326 C116 350 105 365 91 363 C76 361 73 339 77 316Z",
+  "M139 270 C153 280 167 278 180 267 C187 339 184 361 169 363 C155 365 144 350 142 326Z",
+  "M91 363 C101 371 114 369 122 357 L117 404 C113 418 101 424 92 416 C85 409 86 385 91 363Z",
+  "M142 357 C150 369 163 371 173 363 C178 385 179 409 172 416 C163 424 151 418 147 404Z",
+];
+
+const BACK_BASE = [
+  "M110 8 C126 8 138 24 138 45 C138 66 126 80 110 80 C94 80 82 66 82 45 C82 24 94 8 110 8Z",
+  "M92 77 C99 93 104 101 110 101 C116 101 121 93 128 77 L136 101 C129 113 120 119 110 119 C100 119 91 113 84 101Z",
+  "M78 100 C60 104 46 115 37 132 C27 153 29 183 38 216 C48 247 77 268 99 271 C106 275 114 275 121 271 C143 268 172 247 182 216 C191 183 193 153 183 132 C174 115 160 104 142 100 C134 114 123 122 110 122 C97 122 86 114 78 100Z",
+  "M40 132 C27 149 23 176 28 203 L35 239 C38 255 47 263 57 260 C67 257 70 243 65 226 L59 197 C56 176 61 153 72 137Z",
+  "M180 132 C193 149 197 176 192 203 L185 239 C182 255 173 263 163 260 C153 257 150 243 155 226 L161 197 C164 176 159 153 148 137Z",
+  "M80 268 C93 279 107 281 121 271 L118 326 C116 350 105 365 91 363 C76 361 73 339 77 316Z",
+  "M139 271 C153 281 167 279 180 268 C187 339 184 361 169 363 C155 365 144 350 142 326Z",
+  "M91 363 C101 371 114 369 122 357 L117 404 C113 418 101 424 92 416 C85 409 86 385 91 363Z",
+  "M142 357 C150 369 163 371 173 363 C178 385 179 409 172 416 C163 424 151 418 147 404Z",
+];
+
+const FRONT_LINES = [
+  "M110 121 L110 266",
+  "M80 151 C96 160 124 160 140 151",
+  "M76 267 C92 279 107 281 121 270 C128 274 133 274 139 270 C153 281 168 279 184 267",
+  "M96 270 C101 299 99 334 91 363",
+  "M124 270 C119 299 121 334 129 363",
+];
+
+const BACK_LINES = [
+  "M110 122 L110 270",
+  "M71 140 C89 157 102 164 110 164 C118 164 131 157 149 140",
+  "M76 268 C93 280 107 282 121 271 C128 275 133 275 139 271 C153 282 168 280 184 268",
+];
+
+const FRONT_PARTS: FigureParts = {
+  shoulder: [
+    "M47 119 C58 101 77 98 90 106 C86 124 72 137 51 139 C43 132 42 125 47 119Z",
+    "M130 106 C143 98 162 101 173 119 C178 125 177 132 169 139 C148 137 134 124 130 106Z",
+  ],
+  chest: [
+    "M76 121 C89 110 105 108 109 123 L109 151 C95 158 80 155 69 143 C68 135 70 127 76 121Z",
+    "M111 123 C115 108 131 110 144 121 C150 127 152 135 151 143 C140 155 125 158 111 151Z",
+  ],
+  abs: [
+    "M94 159 C101 156 107 156 109 159 L109 181 C104 184 96 184 91 180 C90 171 91 164 94 159Z",
+    "M111 159 C113 156 119 156 126 159 C129 164 130 171 129 180 C124 184 116 184 111 181Z",
+    "M92 190 C99 186 107 186 109 190 L109 213 C104 217 96 217 91 212 C89 204 89 195 92 190Z",
+    "M111 190 C113 186 121 186 128 190 C131 195 131 204 129 212 C124 217 116 217 111 213Z",
+    "M92 222 C99 218 107 218 109 222 L109 251 C104 256 96 255 92 248 C89 240 89 228 92 222Z",
+    "M111 222 C113 218 121 218 128 222 C131 228 131 240 128 248 C124 255 116 256 111 251Z",
+    "M73 160 C82 173 84 201 80 230 C78 245 69 252 63 246 C63 211 66 181 73 160Z",
+    "M147 160 C154 181 157 211 157 246 C151 252 142 245 140 230 C136 201 138 173 147 160Z",
+  ],
+  arms: [
+    "M39 166 C50 162 59 171 60 186 L55 226 C53 239 47 247 39 245 C31 242 30 231 34 219 L38 189 C38 181 38 172 39 166Z",
+    "M40 249 C49 250 55 258 53 271 L45 314 C42 328 33 334 27 326 C23 320 26 306 31 294 L36 265 C37 257 38 252 40 249Z",
+    "M160 186 C161 171 170 162 181 166 C182 172 182 181 182 189 L186 219 C190 231 189 242 181 245 C173 247 167 239 165 226Z",
+    "M167 271 C165 258 171 250 180 249 C182 252 183 257 184 265 L189 294 C194 306 197 320 193 326 C187 334 178 328 175 314Z",
+  ],
+  legs: [
+    "M78 272 C91 281 108 282 120 271 L116 325 C114 347 104 360 91 358 C78 356 75 337 79 316Z",
+    "M140 271 C152 282 169 281 182 272 C185 337 182 356 169 358 C156 360 146 347 144 325Z",
+    "M91 360 C100 366 113 365 121 355 L116 401 C113 414 101 419 92 412 C86 405 86 383 91 360Z",
+    "M144 355 C152 365 165 366 174 360 C179 383 179 405 172 412 C163 419 151 414 148 401Z",
+  ],
+};
+
+const BACK_PARTS: FigureParts = {
+  shoulder: [
+    "M47 120 C58 101 77 99 91 107 C87 126 72 139 50 141 C42 133 42 126 47 120Z",
+    "M129 107 C143 99 162 101 173 120 C178 126 178 133 170 141 C148 139 133 126 129 107Z",
+  ],
+  back: [
+    "M91 101 C102 109 109 122 111 145 C94 144 78 134 69 120 C73 111 81 105 91 101Z",
+    "M129 101 C139 105 147 111 151 120 C142 134 126 144 109 145 C111 122 118 109 129 101Z",
+    "M70 128 C91 151 102 180 101 222 C82 213 68 189 66 158 C66 146 67 136 70 128Z",
+    "M150 128 C153 136 154 146 154 158 C152 189 138 213 119 222 C118 180 129 151 150 128Z",
+    "M105 149 C111 152 116 152 122 149 L122 224 C119 233 115 240 110 243 C105 240 101 233 98 224Z",
+    "M95 231 C103 242 108 247 110 248 C112 247 117 242 125 231 C128 248 122 264 114 272 C111 275 109 275 106 272 C98 264 92 248 95 231Z",
+  ],
+  arms: [
+    "M39 166 C50 162 59 171 60 186 L55 226 C53 239 47 247 39 245 C31 242 30 231 34 219 L38 189 C38 181 38 172 39 166Z",
+    "M40 249 C49 250 55 258 53 271 L45 314 C42 328 33 334 27 326 C23 320 26 306 31 294 L36 265 C37 257 38 252 40 249Z",
+    "M160 186 C161 171 170 162 181 166 C182 172 182 181 182 189 L186 219 C190 231 189 242 181 245 C173 247 167 239 165 226Z",
+    "M167 271 C165 258 171 250 180 249 C182 252 183 257 184 265 L189 294 C194 306 197 320 193 326 C187 334 178 328 175 314Z",
+  ],
+  legs: [
+    "M78 270 C91 259 108 259 121 273 C121 291 112 303 99 306 C86 302 78 289 78 270Z",
+    "M139 273 C152 259 169 259 182 270 C182 289 174 302 161 306 C148 303 139 291 139 273Z",
+    "M80 302 C93 314 108 314 120 299 L116 326 C114 348 104 360 91 358 C78 356 75 337 79 316Z",
+    "M140 299 C152 314 167 314 180 302 C185 337 182 356 169 358 C156 360 146 348 144 326Z",
+    "M91 360 C100 366 113 365 121 355 L116 401 C113 414 101 419 92 412 C86 405 86 383 91 360Z",
+    "M144 355 C152 365 165 366 174 360 C179 383 179 405 172 412 C163 419 151 414 148 401Z",
+  ],
+};
 
 function normalizeGroup(group: MuscleGroup | null | undefined): HeatmapGroup | null {
   if (!group) return null;
@@ -46,7 +148,7 @@ function getLastDateForGroup(group: HeatmapGroup, lastTrainedMap: Partial<Record
 function BodyPartGroup({ group, color, label, selected, status, onSelect, children }: BodyPartGroupProps) {
   return (
     <g
-      className={`body-map__muscle ${selected ? "is-selected" : ""}`}
+      className={`heatmap-part ${selected ? "is-selected" : ""}`}
       role="button"
       tabIndex={0}
       aria-label={`${label}，${status}`}
@@ -57,7 +159,7 @@ function BodyPartGroup({ group, color, label, selected, status, onSelect, childr
           onSelect(group);
         }
       }}
-      style={{ "--muscle-color": color } as CSSProperties}
+      style={{ "--heat-color": color } as CSSProperties}
     >
       <title>{`${label} · ${status}`}</title>
       {children}
@@ -65,14 +167,8 @@ function BodyPartGroup({ group, color, label, selected, status, onSelect, childr
   );
 }
 
-function MusclePath({ d }: { d: string }) {
-  return (
-    <>
-      <path className="body-map__muscle-hit" d={d} />
-      <path className="body-map__muscle-fill" d={d} />
-      <path className="body-map__muscle-gloss" d={d} />
-    </>
-  );
+function Area({ d }: { d: string }) {
+  return <path className="heatmap-area" d={d} />;
 }
 
 export function BodyTrainingMap({ lastTrainedMap, selectedGroup, onSelectGroup, compact = false }: BodyTrainingMapProps) {
@@ -91,9 +187,6 @@ export function BodyTrainingMap({ lastTrainedMap, selectedGroup, onSelectGroup, 
     onSelectGroup?.(group);
   }
 
-  const activeLastDate = getLastDateForGroup(activeGroup, lastTrainedMap);
-  const activeStatus = formatLastTrainedStatus(activeGroup, activeLastDate);
-
   function colorFor(group: HeatmapGroup) {
     return getTrainingFreshnessColor(getLastDateForGroup(group, lastTrainedMap), today);
   }
@@ -102,193 +195,68 @@ export function BodyTrainingMap({ lastTrainedMap, selectedGroup, onSelectGroup, 
     return formatLastTrainedStatus(group, getLastDateForGroup(group, lastTrainedMap));
   }
 
+  function renderFigure(base: string[], detailLines: string[], parts: FigureParts, transform: string) {
+    return (
+      <g className="heatmap-person" transform={transform}>
+        <g className="heatmap-base">
+          {base.map((path) => (
+            <path d={path} key={path} />
+          ))}
+        </g>
+        <g className="heatmap-base-lines" aria-hidden="true">
+          {detailLines.map((path) => (
+            <path d={path} key={path} />
+          ))}
+        </g>
+        {HEATMAP_GROUPS.map((group) => {
+          const paths = parts[group];
+          if (!paths?.length) return null;
+
+          return (
+            <BodyPartGroup
+              color={colorFor(group)}
+              group={group}
+              key={group}
+              label={MUSCLE_LABELS[group]}
+              selected={activeGroup === group}
+              status={statusFor(group)}
+              onSelect={select}
+            >
+              {paths.map((path) => (
+                <Area d={path} key={path} />
+              ))}
+            </BodyPartGroup>
+          );
+        })}
+      </g>
+    );
+  }
+
+  const activeStatus = statusFor(activeGroup);
+
   return (
-    <div className={`body-map ${compact ? "body-map--compact" : ""}`} aria-label="身体训练热力图">
-      <div className="body-map__visual">
-        <svg viewBox="0 0 640 372" role="img" aria-label="正面和背面人体训练部位热力图">
+    <div className={`body-training-map ${compact ? "body-training-map--compact" : ""}`} aria-label="身体训练热力图">
+      <div className="body-training-map__visual">
+        <svg viewBox="0 0 500 430" preserveAspectRatio="xMidYMid meet" role="img" aria-label="正面和背面人体训练部位热力图">
           <defs>
-            <radialGradient id="bodyBaseSoft" cx="50%" cy="22%" r="88%">
+            <radialGradient id="heatmapBodyBase" cx="50%" cy="18%" r="92%">
               <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="58%" stopColor="#f5f6f2" />
-              <stop offset="100%" stopColor="#e3e6df" />
+              <stop offset="55%" stopColor="#f6f7f2" />
+              <stop offset="100%" stopColor="#e8ebe4" />
             </radialGradient>
-            <linearGradient id="muscleGlossSoft" x1="0%" x2="100%" y1="0%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.42" />
-              <stop offset="45%" stopColor="#ffffff" stopOpacity="0.08" />
-              <stop offset="100%" stopColor="#111111" stopOpacity="0.04" />
-            </linearGradient>
-            <filter id="bodySoftShadow" x="-20%" y="-18%" width="140%" height="138%">
-              <feDropShadow dx="0" dy="8" stdDeviation="10" floodColor="#111111" floodOpacity="0.09" />
-            </filter>
           </defs>
 
-          <g className="body-map__figure" filter="url(#bodySoftShadow)" transform="translate(24 8)">
-            <ellipse className="body-map__base" cx="150" cy="34" rx="24" ry="30" />
-            <path className="body-map__detail-line" d="M126 35 C116 37 114 54 125 62 M174 35 C184 37 186 54 175 62" />
-            <path
-              className="body-map__base"
-              d="M132 60 L125 82 C105 87 87 94 73 108 C62 119 56 137 54 158 L45 229 C38 242 37 260 48 266 C57 271 66 265 70 252 L83 174 C88 204 95 230 104 254 L108 315 L118 347 C123 363 144 363 148 346 L153 276 L158 346 C162 363 183 363 188 347 L198 315 L202 254 C211 230 218 204 223 174 L236 252 C240 265 249 271 258 266 C269 260 268 242 261 229 L252 158 C250 137 244 119 233 108 C219 94 195 87 175 82 L168 60 C158 66 142 66 132 60Z"
-            />
-          </g>
-
-          <g className="body-map__figure" filter="url(#bodySoftShadow)" transform="translate(354 8)">
-            <ellipse className="body-map__base" cx="150" cy="34" rx="24" ry="30" />
-            <path className="body-map__detail-line" d="M126 35 C116 37 114 54 125 62 M174 35 C184 37 186 54 175 62" />
-            <path
-              className="body-map__base"
-              d="M132 60 L124 82 C104 86 82 95 70 109 C58 124 52 141 50 162 L41 229 C34 242 34 259 45 265 C54 270 63 264 68 252 L81 174 C86 205 94 232 104 258 L109 316 L119 347 C124 363 144 363 148 346 L153 278 L158 346 C162 363 182 363 188 347 L198 316 L203 258 C213 232 221 205 226 174 L239 252 C244 264 253 270 262 265 C273 259 273 242 266 229 L257 162 C255 141 249 124 237 109 C225 95 196 86 176 82 L168 60 C158 67 142 67 132 60Z"
-            />
-          </g>
-
-          <g className="body-map__separators" aria-hidden="true" transform="translate(24 8)">
-            <path d="M130 82 C136 92 144 97 150 99 C156 97 164 92 170 82" />
-            <path d="M150 96 L150 246" />
-            <path d="M95 126 C111 144 132 149 150 138 C168 149 189 144 205 126" />
-            <path d="M109 254 C124 264 140 264 150 254 C160 264 176 264 191 254" />
-            <path d="M118 347 C130 354 143 353 150 344 C157 353 170 354 188 347" />
-          </g>
-          <g className="body-map__separators" aria-hidden="true" transform="translate(354 8)">
-            <path d="M130 82 C138 96 144 105 150 108 C156 105 162 96 170 82" />
-            <path d="M150 96 L150 250" />
-            <path d="M88 129 C105 148 129 158 150 158 C171 158 195 148 212 129" />
-            <path d="M104 258 C122 276 140 279 150 262 C160 279 178 276 196 258" />
-          </g>
-
-          <BodyPartGroup
-            color={colorFor("chest")}
-            group="chest"
-            label={MUSCLE_LABELS.chest}
-            selected={activeGroup === "chest"}
-            status={statusFor("chest")}
-            onSelect={select}
-          >
-            <g transform="translate(24 8)">
-              <MusclePath d="M101 104 C115 88 140 89 148 105 L148 139 C132 148 109 144 96 127 C93 118 94 110 101 104Z" />
-              <MusclePath d="M152 105 C160 89 185 88 199 104 C206 110 207 118 204 127 C191 144 168 148 152 139Z" />
-            </g>
-          </BodyPartGroup>
-
-          <BodyPartGroup
-            color={colorFor("abs")}
-            group="abs"
-            label={MUSCLE_LABELS.abs}
-            selected={activeGroup === "abs"}
-            status={statusFor("abs")}
-            onSelect={select}
-          >
-            <g transform="translate(24 8)">
-              <MusclePath d="M119 148 C128 144 140 144 148 148 L148 170 C139 174 126 174 118 169 C116 161 116 153 119 148Z" />
-              <MusclePath d="M152 148 C160 144 172 144 181 148 C184 153 184 161 182 169 C174 174 161 174 152 170Z" />
-              <MusclePath d="M117 178 C127 174 140 174 148 178 L148 202 C139 207 125 207 116 201 C114 192 114 183 117 178Z" />
-              <MusclePath d="M152 178 C160 174 173 174 183 178 C186 183 186 192 184 201 C175 207 161 207 152 202Z" />
-              <MusclePath d="M116 210 C126 206 140 206 148 210 L148 237 C138 244 126 242 118 234 C115 226 114 216 116 210Z" />
-              <MusclePath d="M152 210 C160 206 174 206 184 210 C186 216 185 226 182 234 C174 242 162 244 152 237Z" />
-              <MusclePath d="M98 150 C109 160 112 184 107 218 C104 236 94 245 86 238 C87 199 90 170 98 150Z" />
-              <MusclePath d="M202 150 C210 170 213 199 214 238 C206 245 196 236 193 218 C188 184 191 160 202 150Z" />
-            </g>
-          </BodyPartGroup>
-
-          <BodyPartGroup
-            color={colorFor("back")}
-            group="back"
-            label={MUSCLE_LABELS.back}
-            selected={activeGroup === "back"}
-            status={statusFor("back")}
-            onSelect={select}
-          >
-            <g transform="translate(354 8)">
-              <MusclePath d="M126 86 C137 102 143 119 145 142 C127 139 107 128 98 112 C105 100 114 91 126 86Z" />
-              <MusclePath d="M174 86 C186 91 195 100 202 112 C193 128 173 139 155 142 C157 119 163 102 174 86Z" />
-              <MusclePath d="M96 119 C119 143 130 179 128 219 C105 210 87 185 84 151 C86 137 90 127 96 119Z" />
-              <MusclePath d="M204 119 C210 127 214 137 216 151 C213 185 195 210 172 219 C170 179 181 143 204 119Z" />
-              <MusclePath d="M130 145 C141 150 159 150 170 145 L169 223 C164 233 157 239 150 241 C143 239 136 233 131 223Z" />
-              <MusclePath d="M129 229 C139 239 145 245 150 246 C155 245 161 239 171 229 C174 248 168 263 158 272 C153 276 147 276 142 272 C132 263 126 248 129 229Z" />
-            </g>
-          </BodyPartGroup>
-
-          <BodyPartGroup
-            color={colorFor("arms")}
-            group="arms"
-            label={MUSCLE_LABELS.arms}
-            selected={activeGroup === "arms"}
-            status={statusFor("arms")}
-            onSelect={select}
-          >
-            <g transform="translate(24 8)">
-              <MusclePath d="M56 142 C70 141 83 151 85 167 L78 219 C76 232 68 241 57 237 C50 234 49 222 53 209Z" />
-              <MusclePath d="M53 228 C64 231 72 239 74 251 L68 289 C65 303 55 310 47 304 C40 299 42 286 46 273Z" />
-              <MusclePath d="M244 142 C230 141 217 151 215 167 L222 219 C224 232 232 241 243 237 C250 234 251 222 247 209Z" />
-              <MusclePath d="M247 228 C236 231 228 239 226 251 L232 289 C235 303 245 310 253 304 C260 299 258 286 254 273Z" />
-            </g>
-            <g transform="translate(354 8)">
-              <MusclePath d="M53 143 C67 142 80 151 82 167 L75 219 C73 232 65 240 55 236 C48 233 47 222 51 209Z" />
-              <MusclePath d="M50 228 C61 231 69 238 71 250 L65 288 C62 302 53 309 45 303 C38 298 40 285 44 272Z" />
-              <MusclePath d="M247 143 C233 142 220 151 218 167 L225 219 C227 232 235 240 245 236 C252 233 253 222 249 209Z" />
-              <MusclePath d="M250 228 C239 231 231 238 229 250 L235 288 C238 302 247 309 255 303 C262 298 260 285 256 272Z" />
-            </g>
-          </BodyPartGroup>
-
-          <BodyPartGroup
-            color={colorFor("legs")}
-            group="legs"
-            label={MUSCLE_LABELS.legs}
-            selected={activeGroup === "legs"}
-            status={statusFor("legs")}
-            onSelect={select}
-          >
-            <g transform="translate(24 8)">
-              <MusclePath d="M108 254 C120 264 140 265 148 252 L143 314 C140 332 129 342 118 335 C108 329 107 310 110 292Z" />
-              <MusclePath d="M152 252 C160 265 180 264 192 254 L190 292 C193 310 192 329 182 335 C171 342 160 332 157 314Z" />
-              <MusclePath d="M119 341 C130 347 140 346 147 339 L145 347 C142 363 123 363 118 347Z" />
-              <MusclePath d="M153 339 C160 346 170 347 181 341 L188 347 C183 363 164 363 155 347Z" />
-              <MusclePath d="M116 340 C128 348 139 347 147 338 L143 352 L140 362 L136 365 C126 367 119 360 116 340Z" />
-              <MusclePath d="M153 338 C161 347 172 348 184 340 C181 360 174 367 164 365 L160 362 L157 352Z" />
-            </g>
-            <g transform="translate(354 8)">
-              <MusclePath d="M105 246 C117 236 139 236 149 250 C150 269 142 282 126 285 C110 281 104 266 105 246Z" />
-              <MusclePath d="M151 250 C161 236 183 236 195 246 C196 266 190 281 174 285 C158 282 150 269 151 250Z" />
-              <MusclePath d="M108 279 C121 288 140 288 149 276 L143 316 C140 333 128 342 117 334 C107 327 106 309 109 292Z" />
-              <MusclePath d="M151 276 C160 288 179 288 192 279 L191 292 C194 309 193 327 183 334 C172 342 160 333 157 316Z" />
-              <MusclePath d="M117 340 C129 347 140 347 148 338 L144 352 C141 365 128 366 120 357 C117 353 116 348 117 340Z" />
-              <MusclePath d="M152 338 C160 347 171 347 183 340 C184 348 183 353 180 357 C172 366 159 365 156 352Z" />
-            </g>
-          </BodyPartGroup>
-
-          <BodyPartGroup
-            color={colorFor("shoulder")}
-            group="shoulder"
-            label={MUSCLE_LABELS.shoulder}
-            selected={activeGroup === "shoulder"}
-            status={statusFor("shoulder")}
-            onSelect={select}
-          >
-            <g transform="translate(24 8)">
-              <MusclePath d="M78 108 C89 91 109 86 124 92 C122 112 104 132 78 137 C70 126 70 116 78 108Z" />
-              <MusclePath d="M176 92 C191 86 211 91 222 108 C230 116 230 126 222 137 C196 132 178 112 176 92Z" />
-            </g>
-            <g transform="translate(354 8)">
-              <MusclePath d="M76 109 C88 92 108 87 123 93 C121 113 103 133 77 138 C69 127 69 117 76 109Z" />
-              <MusclePath d="M177 93 C192 87 212 92 224 109 C231 117 231 127 223 138 C197 133 179 113 177 93Z" />
-            </g>
-          </BodyPartGroup>
-
-          <g className="body-map__labels" aria-hidden="true">
-            <text x="174" y="360">
-              Front
-            </text>
-            <text x="504" y="360">
-              Back
-            </text>
-          </g>
+          {renderFigure(FRONT_BASE, FRONT_LINES, FRONT_PARTS, "translate(24 4)")}
+          {renderFigure(BACK_BASE, BACK_LINES, BACK_PARTS, "translate(256 4)")}
         </svg>
       </div>
 
-      <div className="body-map__footer">
-        <p className="body-map__status">
+      <div className="body-training-map__footer">
+        <p className="body-training-map__status">
           <strong>{MUSCLE_LABELS[activeGroup]}</strong>
           <span>{activeStatus}</span>
         </p>
-        <div className="body-map__scale" aria-label="颜色图例，近到远">
+        <div className="body-training-map__scale" aria-label="颜色图例，近到远">
           <span>近</span>
           <div>
             {LEGEND_COLORS.map((color) => (

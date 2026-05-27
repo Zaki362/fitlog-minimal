@@ -7,13 +7,24 @@ import type {
   MuscleGroup,
   ProgressUpdate,
   SessionExercise,
+  TrainingPlan,
+  TrainingPlanItem,
   WorkoutSession,
 } from "../types";
 import { MUSCLE_LABELS } from "../types";
 import { compareYmdDesc, formatDateCN } from "./date";
+import {
+  clampIntervalDays,
+  ensureTrainingPlan,
+  getDefaultTrainingPlan,
+  mergeTrainingPlan,
+  normalizePlanRole,
+  normalizeTrainingPlanGroup,
+  TRAINING_PLAN_VERSION,
+} from "./trainingPlan";
 
 export const STORAGE_KEY = "fitlog_minimal_v1";
-const VERSION = 1;
+const VERSION = TRAINING_PLAN_VERSION;
 
 export type LoadDataResult = {
   data: AppData;
@@ -239,6 +250,55 @@ function validateProgress(value: unknown): ProgressUpdate | null {
   };
 }
 
+function validateTrainingPlanItem(value: unknown): TrainingPlanItem | null {
+  if (!isObject(value)) {
+    return null;
+  }
+  if (!isMuscleGroup(value.muscleGroup)) {
+    return null;
+  }
+
+  const group = normalizeTrainingPlanGroup(value.muscleGroup);
+  if (!group) {
+    return null;
+  }
+
+  const role = normalizePlanRole(value.role);
+  const priority = Number(value.priority);
+  const targetIntervalDays = Number(value.targetIntervalDays);
+
+  return {
+    id: typeof value.id === "string" && value.id ? value.id : `plan-${group}`,
+    muscleGroup: group,
+    enabled: role === "disabled" ? false : Boolean(value.enabled),
+    role,
+    targetIntervalDays: clampIntervalDays(targetIntervalDays),
+    priority: Number.isFinite(priority) ? priority : 0,
+    allowStandalone: role === "disabled" ? false : Boolean(value.allowStandalone),
+    notes: typeof value.notes === "string" ? value.notes : undefined,
+    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : new Date().toISOString(),
+  };
+}
+
+function validateTrainingPlan(value: unknown, fallbackUpdatedAt: string): TrainingPlan | undefined {
+  if (!isObject(value) || !Array.isArray(value.items)) {
+    return undefined;
+  }
+
+  const items = value.items
+    .map(validateTrainingPlanItem)
+    .filter((item): item is TrainingPlanItem => Boolean(item));
+
+  return mergeTrainingPlan(
+    {
+      version: typeof value.version === "number" ? value.version : VERSION,
+      updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : fallbackUpdatedAt,
+      items,
+    },
+    fallbackUpdatedAt,
+  );
+}
+
 function hydrateExerciseImages(exercises: ExerciseTemplate[]): ExerciseTemplate[] {
   const seedImageMap = new Map(
     createSeedData()
@@ -300,13 +360,14 @@ export function validateAppData(value: unknown): AppData {
     throw new Error("训练记录里存在无效条目");
   }
 
-  return {
+  return ensureTrainingPlan({
     version: typeof value.version === "number" ? value.version : VERSION,
     updatedAt: deriveDataUpdatedAt(value, exercises, sessions, progressUpdates),
     exercises: hydrateExerciseImages(exercises),
     sessions,
     progressUpdates,
-  };
+    trainingPlan: validateTrainingPlan(value.trainingPlan, deriveDataUpdatedAt(value, exercises, sessions, progressUpdates)),
+  });
 }
 
 export function loadData(): LoadDataResult {
@@ -321,7 +382,12 @@ export function loadData(): LoadDataResult {
   }
 
   try {
-    return { data: validateAppData(JSON.parse(raw)) };
+    const parsed = JSON.parse(raw);
+    const data = validateAppData(parsed);
+    if (!isObject(parsed) || !isObject(parsed.trainingPlan) || data.version < VERSION) {
+      return { data: saveData(data, data.updatedAt) };
+    }
+    return { data };
   } catch (error) {
     return {
       data: seed,
@@ -331,11 +397,11 @@ export function loadData(): LoadDataResult {
 }
 
 export function saveData(data: AppData, updatedAt = new Date().toISOString()): AppData {
-  const normalized: AppData = {
+  const normalized: AppData = ensureTrainingPlan({
     ...data,
-    version: data.version || VERSION,
+    version: Math.max(data.version || VERSION, VERSION),
     updatedAt,
-  };
+  });
   if (!hasStorage()) {
     return normalized;
   }
@@ -355,18 +421,20 @@ export function clearData(): AppData {
     exercises: [],
     sessions: [],
     progressUpdates: [],
+    trainingPlan: getDefaultTrainingPlan(new Date().toISOString()),
   };
   return saveData(empty, empty.updatedAt);
 }
 
 export function exportJson(data: AppData): string {
-  return JSON.stringify({ ...data, version: data.version || VERSION, updatedAt: data.updatedAt }, null, 2);
+  const normalized = ensureTrainingPlan({ ...data, version: data.version || VERSION, updatedAt: data.updatedAt });
+  return JSON.stringify(normalized, null, 2);
 }
 
 export function importJson(json: string): ImportJsonResult {
   try {
     const data = validateAppData(JSON.parse(json));
-    return { ok: true, data: { ...data, version: data.version || VERSION, updatedAt: data.updatedAt } };
+    return { ok: true, data: ensureTrainingPlan({ ...data, version: data.version || VERSION, updatedAt: data.updatedAt }) };
   } catch (error) {
     return {
       ok: false,

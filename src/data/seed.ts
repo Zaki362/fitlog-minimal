@@ -6,9 +6,10 @@ import type {
   MuscleGroup,
   WorkoutSession,
 } from "../types";
+import { getDefaultTrainingPlan, TRAINING_PLAN_VERSION } from "../lib/trainingPlan";
 
 const SEED_YEAR = 2026;
-const VERSION = 1;
+const VERSION = TRAINING_PLAN_VERSION;
 const BASE_TIME = `${SEED_YEAR}-01-01T00:00:00.000Z`;
 
 function exercise(
@@ -180,6 +181,7 @@ export const seedData: AppData = {
   exercises: seedExercises,
   sessions: seedSessions,
   progressUpdates: [],
+  trainingPlan: getDefaultTrainingPlan(BASE_TIME),
 };
 
 export function createSeedData(): AppData {
