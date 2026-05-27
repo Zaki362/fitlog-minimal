@@ -1,12 +1,10 @@
 import type { ExerciseTemplate, MuscleGroup, TrainingRecommendation } from "../types";
 import { MUSCLE_LABELS } from "../types";
-import { BodyTrainingMap } from "./BodyTrainingMap";
 import { ExerciseIllustration } from "./ExerciseIllustration";
 import { MuscleChip } from "./MuscleChip";
 
 type DashboardTrainingVisualProps = {
   heroExercise?: ExerciseTemplate;
-  lastTrainedMap: Partial<Record<MuscleGroup, string | null>>;
   recommendation: TrainingRecommendation;
   onStart: (groups: MuscleGroup[]) => void;
 };
@@ -26,14 +24,12 @@ const fallbackHeroByGroup: Record<MuscleGroup, Pick<ExerciseTemplate, "id" | "na
 
 export function DashboardTrainingVisual({
   heroExercise,
-  lastTrainedMap,
   recommendation,
   onStart,
 }: DashboardTrainingVisualProps) {
   const groups = [...recommendation.primaryGroups, ...(recommendation.secondaryGroups ?? [])];
   const primaryGroup = recommendation.primaryGroups[0] ?? "custom";
   const hero = heroExercise ?? fallbackHeroByGroup[primaryGroup];
-  const groupLabel = groups.map((group) => MUSCLE_LABELS[group]).join(" + ");
 
   return (
     <article className="dashboard-visual-card">
@@ -55,14 +51,6 @@ export function DashboardTrainingVisual({
             按建议开练
           </button>
         </div>
-      </div>
-
-      <div className="dashboard-visual-card__status">
-        <div>
-          <strong>身体热力</strong>
-          <span>{groupLabel ? `${groupLabel} · 按最近训练时间上色` : "颜色越亮，越近期训练"}</span>
-        </div>
-        <BodyTrainingMap compact lastTrainedMap={lastTrainedMap} selectedGroup={primaryGroup} />
       </div>
     </article>
   );

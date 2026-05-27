@@ -1,3 +1,4 @@
+import { BodyHeatmapCard } from "../components/BodyHeatmapCard";
 import { DashboardTrainingVisual } from "../components/DashboardTrainingVisual";
 import { EmptyState } from "../components/EmptyState";
 import { StatCard } from "../components/StatCard";
@@ -65,11 +66,12 @@ export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession
         </div>
         <DashboardTrainingVisual
           heroExercise={heroExercise}
-          lastTrainedMap={lastTrainedMap}
           recommendation={recommendation}
           onStart={onQuickStart}
         />
       </section>
+
+      <BodyHeatmapCard lastTrainedMap={lastTrainedMap} />
 
       <section className="panel">
         <div className="section-title">

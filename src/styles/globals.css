@@ -2673,6 +2673,245 @@ img.exercise-illustration--custom {
   max-width: none;
 }
 
+.body-heatmap-card {
+  display: grid;
+  gap: 12px;
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(184, 255, 60, 0.08), rgba(255, 255, 255, 0) 42%),
+    var(--card);
+  box-shadow: 0 12px 30px rgba(17, 17, 17, 0.055);
+}
+
+.body-heatmap-card__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.body-heatmap-card__header h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.body-heatmap-card__header span {
+  color: #9a9a9a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.body-heatmap-card .body-map {
+  display: grid;
+  min-height: 0;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.body-map__visual {
+  height: 252px;
+  overflow: hidden;
+  border: 1px solid rgba(17, 17, 17, 0.045);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(246, 247, 242, 0.88)),
+    radial-gradient(circle at 50% 38%, rgba(184, 255, 60, 0.1), rgba(255, 255, 255, 0) 54%);
+}
+
+.body-map__visual svg,
+.body-heatmap-card .body-map svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+  touch-action: manipulation;
+}
+
+.body-map__base {
+  fill: url(#bodyBaseSoft);
+  stroke: #d9ddd4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.body-map__detail-line,
+.body-map__separators {
+  fill: none;
+  stroke: rgba(128, 133, 122, 0.5);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.body-map__separators {
+  opacity: 0.72;
+}
+
+.body-map__muscle {
+  cursor: pointer;
+  outline: none;
+}
+
+.body-map__muscle-hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.body-map__muscle-fill {
+  pointer-events: visiblePainted;
+  fill: var(--muscle-color);
+  fill-opacity: 0.86;
+  stroke: #ffffff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.1;
+  transition:
+    fill-opacity 160ms ease,
+    filter 160ms ease,
+    stroke 160ms ease,
+    stroke-width 160ms ease;
+  vector-effect: non-scaling-stroke;
+}
+
+.body-map__muscle-gloss {
+  pointer-events: none;
+  fill: url(#muscleGlossSoft);
+  stroke: transparent;
+}
+
+.body-map__muscle:hover .body-map__muscle-fill,
+.body-map__muscle:focus-visible .body-map__muscle-fill {
+  fill-opacity: 0.98;
+  filter: drop-shadow(0 4px 8px rgba(131, 205, 20, 0.18));
+}
+
+.body-map__muscle.is-selected .body-map__muscle-fill {
+  fill-opacity: 1;
+  filter: drop-shadow(0 6px 10px rgba(17, 17, 17, 0.1));
+  stroke: rgba(17, 17, 17, 0.72);
+  stroke-width: 1.15;
+}
+
+.body-map__muscle:hover .body-map__muscle-hit,
+.body-map__muscle.is-selected .body-map__muscle-hit,
+.body-map__muscle:hover .body-map__muscle-gloss,
+.body-map__muscle.is-selected .body-map__muscle-gloss {
+  filter: none;
+  stroke: transparent;
+}
+
+.body-map__labels {
+  fill: rgba(115, 115, 115, 0.42);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-anchor: middle;
+}
+
+.body-map__footer {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.body-map__status {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0;
+}
+
+.body-map__status strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.body-map__status span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.body-map__scale {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  color: #8f8f8a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.body-map__scale div {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.body-map__scale i {
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.68);
+}
+
+.body-map--compact .body-map__visual {
+  height: 188px;
+}
+
+.body-map--compact .body-map__footer {
+  min-height: 26px;
+}
+
+@media (max-width: 430px) {
+  .body-heatmap-card {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .body-map__visual {
+    height: 238px;
+  }
+}
+
+@media (max-width: 390px) {
+  .body-map__visual {
+    height: 224px;
+  }
+
+  .body-map__footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
 @media (max-width: 430px) {
   .app-shell {
     box-shadow: none;

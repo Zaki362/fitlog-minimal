@@ -25,7 +25,7 @@ const TRAINING_FRESHNESS_COLORS = {
   warm: "#E9F8B4",
   stale: "#E4E8D8",
   cold: "#DCDDD8",
-  never: "#E9E9E5",
+  never: "#EEF0EA",
 };
 
 function groupNameInSentence(group: MuscleGroup): string {
@@ -142,6 +142,31 @@ export function getTrainingFreshnessColor(lastDate: string | null | undefined, t
   if (stableDays <= 14) return TRAINING_FRESHNESS_COLORS.warm;
   if (stableDays <= 30) return TRAINING_FRESHNESS_COLORS.stale;
   return TRAINING_FRESHNESS_COLORS.cold;
+}
+
+export function formatLastTrainedStatus(
+  group: MuscleGroup,
+  lastDate: string | null | undefined,
+  referenceYmd = todayYmd(),
+): string {
+  if (!lastDate) {
+    return "从未训练";
+  }
+
+  const days = Math.max(0, diffDays(lastDate, referenceYmd));
+  if (!Number.isFinite(days)) {
+    return "从未训练";
+  }
+  if (days === 0) {
+    return "今天练过";
+  }
+  if (days === 1) {
+    return "昨天练过";
+  }
+  if (days <= 14) {
+    return `${days} 天前训练`;
+  }
+  return `${days} 天未练`;
 }
 
 export function getTrainingRecommendation(data: AppData, referenceYmd = todayYmd()): TrainingRecommendation {
