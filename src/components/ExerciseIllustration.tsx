@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { ExerciseTemplate, MuscleGroup } from "../types";
 
 type IllustrationVariant =
@@ -23,7 +24,7 @@ type IllustrationVariant =
   | "generic";
 
 type ExerciseIllustrationProps = {
-  exercise: Pick<ExerciseTemplate, "id" | "name" | "muscleGroup">;
+  exercise: Pick<ExerciseTemplate, "id" | "name" | "muscleGroup" | "imageUrl">;
   size?: "card" | "detail" | "hero";
 };
 
@@ -280,9 +281,26 @@ function renderVariant(variant: IllustrationVariant) {
 }
 
 export function ExerciseIllustration({ exercise, size = "card" }: ExerciseIllustrationProps) {
+  const [customImageFailed, setCustomImageFailed] = useState(false);
   const variant = getIllustrationVariant(exercise);
   const groupClass = `exercise-illustration--${exercise.muscleGroup as MuscleGroup}`;
   const externalAsset = getExternalAsset(exercise);
+
+  useEffect(() => {
+    setCustomImageFailed(false);
+  }, [exercise.id, exercise.imageUrl]);
+
+  if (exercise.imageUrl && !customImageFailed) {
+    return (
+      <img
+        className={`exercise-illustration exercise-illustration--image exercise-illustration--custom exercise-illustration--${size} ${groupClass}`}
+        src={exercise.imageUrl}
+        alt={`${exercise.name}动作插画`}
+        loading="lazy"
+        onError={() => setCustomImageFailed(true)}
+      />
+    );
+  }
 
   if (externalAsset) {
     return (
@@ -290,6 +308,17 @@ export function ExerciseIllustration({ exercise, size = "card" }: ExerciseIllust
         className={`exercise-illustration exercise-illustration--image exercise-illustration--${size} ${groupClass}`}
         src={`/exercise-assets/${externalAsset}`}
         alt={`${exercise.name}动作插画`}
+        loading="lazy"
+      />
+    );
+  }
+
+  if (variant === "generic") {
+    return (
+      <img
+        className={`exercise-illustration exercise-illustration--image exercise-illustration--custom exercise-illustration--${size} ${groupClass}`}
+        src="/exercises/fallback-exercise.png"
+        alt={`${exercise.name}动作插画占位图`}
         loading="lazy"
       />
     );

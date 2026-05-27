@@ -91,7 +91,8 @@ export function templateToSessionExercise(template: ExerciseTemplate): SessionEx
     actualReps: template.targetReps ?? null,
     completed: false,
     difficulty: null,
-    notes: template.notes ?? "",
+    notes: "",
+    templateNotes: template.notes ?? "",
   };
 }
 

@@ -20,6 +20,8 @@ export function WorkoutExerciseCard({ exercise, onChange }: WorkoutExerciseCardP
     exercise.actualWeightKg === null || exercise.actualWeightKg === undefined
       ? "无重量"
       : `${formatNumber(exercise.actualWeightKg)}kg`;
+  const templateNote = exercise.templateNotes?.trim();
+  const workoutNote = exercise.notes ?? "";
 
   return (
     <article className={`workout-card ${exercise.completed ? "is-completed" : ""}`}>
@@ -87,20 +89,21 @@ export function WorkoutExerciseCard({ exercise, onChange }: WorkoutExerciseCardP
         ))}
       </div>
 
-      {exercise.notes ? (
+      {templateNote ? (
         <div className="exercise-hint">
           <span>动作提示</span>
-          <p>{exercise.notes}</p>
+          <p>{templateNote}</p>
         </div>
       ) : null}
 
       <div className="brief-note">
         <button className="brief-note__button" type="button" onClick={() => setEditingNote((current) => !current)}>
-          {editingNote ? "收起备注" : "备注"}
+          {editingNote ? "收起备注" : workoutNote ? "编辑备注" : "备注"}
         </button>
+        {workoutNote && !editingNote ? <p className="brief-note__preview">{workoutNote}</p> : null}
         {editingNote ? (
           <input
-            value={exercise.notes ?? ""}
+            value={workoutNote}
             onChange={(event) => onChange({ ...exercise, notes: event.target.value })}
             placeholder="可不填"
           />

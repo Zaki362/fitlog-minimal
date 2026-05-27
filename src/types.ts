@@ -22,6 +22,7 @@ export interface ExerciseTemplate {
   defaultWeightKg?: number | null;
   targetSets?: number | null;
   targetReps?: number | string | null;
+  imageUrl?: string;
   unit: ExerciseUnit;
   notes?: string;
   isFavorite: boolean;
@@ -58,6 +59,7 @@ export interface SessionExercise {
   completed: boolean;
   difficulty?: Difficulty | null;
   notes?: string;
+  templateNotes?: string;
   sets?: SetEntry[];
 }
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { MuscleChip } from "../components/MuscleChip";
 import { WorkoutExerciseCard } from "../components/WorkoutExerciseCard";
@@ -30,8 +30,12 @@ function isExerciseModified(current: SessionExercise, original?: SessionExercise
   );
 }
 
+function isFilledCardioEntry(entry: CardioEntry): boolean {
+  return Boolean(entry.durationMinutes || entry.distanceKm || entry.notes?.trim());
+}
+
 function hasCardioEntry(cardio: CardioEntry[]): boolean {
-  return cardio.some((entry) => entry.durationMinutes || entry.distanceKm || entry.notes?.trim());
+  return cardio.some(isFilledCardioEntry);
 }
 
 export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: ActiveWorkoutPageProps) {
@@ -45,28 +49,73 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
 
   const originalExercises = useMemo(() => new Map(draft.exercises.map((exercise) => [exercise.id, exercise])), [draft.exercises]);
   const completedCount = exercises.filter((exercise) => exercise.completed).length;
+  const allCompleted = exercises.length > 0 && completedCount === exercises.length;
   const progress = exercises.length ? Math.round((completedCount / exercises.length) * 100) : 0;
-  const changedWeights = exercises.filter((exercise) => {
-    if (!exercise.exerciseTemplateId || exercise.actualWeightKg === null || exercise.actualWeightKg === undefined) {
+  const templateDifferences = exercises.filter((exercise) => {
+    if (!exercise.exerciseTemplateId) {
       return false;
     }
     const template = data.exercises.find((item) => item.id === exercise.exerciseTemplateId);
-    return Boolean(template && template.defaultWeightKg !== exercise.actualWeightKg);
+    if (!template) {
+      return false;
+    }
+
+    const weightChanged =
+      exercise.actualWeightKg !== null &&
+      exercise.actualWeightKg !== undefined &&
+      template.defaultWeightKg !== exercise.actualWeightKg;
+    const setsChanged =
+      exercise.actualSets !== null &&
+      exercise.actualSets !== undefined &&
+      template.targetSets !== exercise.actualSets;
+    const repsChanged =
+      exercise.actualReps !== null &&
+      exercise.actualReps !== undefined &&
+      !sameRep(template.targetReps, exercise.actualReps);
+
+    return weightChanged || setsChanged || repsChanged;
   });
+  const hasWorkoutChanges = useMemo(
+    () =>
+      exercises.some((exercise) => isExerciseModified(exercise, originalExercises.get(exercise.id))) ||
+      hasCardioEntry(cardio) ||
+      Boolean(notes.trim()) ||
+      Boolean(duration.trim()),
+    [cardio, duration, exercises, notes, originalExercises],
+  );
+
+  useEffect(() => {
+    if (!hasWorkoutChanges) {
+      return undefined;
+    }
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasWorkoutChanges]);
 
   function updateExercise(next: SessionExercise) {
     setExercises((current) => current.map((item) => (item.id === next.id ? next : item)));
   }
 
+  function toggleAllCompleted() {
+    setExercises((current) => current.map((exercise) => ({ ...exercise, completed: !allCompleted })));
+  }
+
   function buildSession(): WorkoutSession {
     const now = new Date().toISOString();
+    const savedCardio = cardio.filter(isFilledCardioEntry);
     return {
       id: createId("session"),
       date: draft.date,
-      title: title.trim() || buildWorkoutTitle(draft.muscleGroups, cardio),
-      muscleGroups: inferSessionGroups({ ...draft, cardio }, exercises),
+      title: title.trim() || buildWorkoutTitle(draft.muscleGroups, savedCardio),
+      muscleGroups: inferSessionGroups({ ...draft, cardio: savedCardio }, exercises),
       exercises,
-      cardio: cardio.length ? cardio : undefined,
+      cardio: savedCardio.length ? savedCardio : undefined,
       durationMinutes: normalizeOptionalNumber(duration),
       overallFeeling: null,
       notes: notes.trim(),
@@ -76,14 +125,13 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
   }
 
   function saveWorkout() {
-    const touched = exercises.some((exercise) => isExerciseModified(exercise, originalExercises.get(exercise.id)));
-    if (!touched && !hasCardioEntry(cardio)) {
-      notify("至少完成一个动作或调整一次记录后再保存", "warning");
+    if (!hasWorkoutChanges) {
+      notify("至少完成一个动作、填写有氧或补充备注后再保存", "warning");
       return;
     }
 
     const session = buildSession();
-    if (changedWeights.length) {
+    if (templateDifferences.length) {
       setPendingSession(session);
       return;
     }
@@ -113,9 +161,16 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
       <section className="active-summary">
         <div className="active-summary__row">
           <span>{formatDateCN(draft.date)}</span>
-          <strong>
-            {completedCount} / {exercises.length} 已完成
-          </strong>
+          <div className="active-summary__status">
+            <strong>
+              {completedCount} / {exercises.length} 已完成
+            </strong>
+            {exercises.length ? (
+              <button className="active-summary__toggle" type="button" onClick={toggleAllCompleted}>
+                {allCompleted ? "全部取消" : "全部完成"}
+              </button>
+            ) : null}
+          </div>
         </div>
         <div className="active-summary__bar" aria-label={`完成进度 ${progress}%`}>
           <span style={{ width: `${progress}%` }} />
@@ -235,8 +290,8 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
 
       <ConfirmDialog
         open={Boolean(pendingSession)}
-        title="更新模板重量？"
-        description={`${changedWeights.length} 个动作的本次重量和模板不同，可以把进步写回动作库。`}
+        title="更新模板数值？"
+        description={`${templateDifferences.length} 个动作的本次重量、组数或次数和模板不同，可以把进步写回动作库。`}
         confirmLabel="更新模板"
         cancelLabel="仅保存本次"
         onCancel={() => finishPending(false)}

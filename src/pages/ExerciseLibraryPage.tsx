@@ -20,6 +20,7 @@ type Filter = "all" | MuscleGroup;
 
 type ExerciseForm = {
   id?: string;
+  imageUrl?: string;
   name: string;
   muscleGroup: MuscleGroup;
   defaultWeightKg: string;
@@ -36,6 +37,7 @@ const units: ExerciseUnit[] = ["kg", "bodyweight", "time", "distance", "mixed"];
 function toForm(exercise?: ExerciseTemplate): ExerciseForm {
   return {
     id: exercise?.id,
+    imageUrl: exercise?.imageUrl,
     name: exercise?.name ?? "",
     muscleGroup: exercise?.muscleGroup ?? "custom",
     defaultWeightKg: exercise?.defaultWeightKg === null || exercise?.defaultWeightKg === undefined ? "" : String(exercise.defaultWeightKg),
@@ -171,6 +173,7 @@ export function ExerciseLibraryPage({
       defaultWeightKg: normalizeOptionalNumber(form.defaultWeightKg),
       targetSets: normalizeOptionalNumber(form.targetSets),
       targetReps: parseReps(form.targetReps),
+      imageUrl: existing?.imageUrl ?? form.imageUrl,
       unit: form.unit,
       notes: form.notes.trim(),
       isFavorite: form.isFavorite,

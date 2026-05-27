@@ -91,6 +91,7 @@ function validateExercise(value: unknown): ExerciseTemplate | null {
       typeof value.targetReps === "number" || typeof value.targetReps === "string"
         ? value.targetReps
         : null,
+    imageUrl: typeof value.imageUrl === "string" ? value.imageUrl : undefined,
     unit,
     notes: typeof value.notes === "string" ? value.notes : "",
     isFavorite: Boolean(value.isFavorite),
@@ -154,6 +155,7 @@ function validateSessionExercise(value: unknown): SessionExercise | null {
     completed: Boolean(value.completed),
     difficulty,
     notes: typeof value.notes === "string" ? value.notes : "",
+    templateNotes: typeof value.templateNotes === "string" ? value.templateNotes : undefined,
     sets: Array.isArray(value.sets)
       ? value.sets
           .filter(isObject)
@@ -237,6 +239,23 @@ function validateProgress(value: unknown): ProgressUpdate | null {
   };
 }
 
+function hydrateExerciseImages(exercises: ExerciseTemplate[]): ExerciseTemplate[] {
+  const seedImageMap = new Map(
+    createSeedData()
+      .exercises.filter((exercise) => exercise.imageUrl)
+      .map((exercise) => [exercise.id, exercise.imageUrl as string]),
+  );
+
+  return exercises.map((exercise) => {
+    if (exercise.imageUrl) {
+      return exercise;
+    }
+
+    const imageUrl = seedImageMap.get(exercise.id);
+    return imageUrl ? { ...exercise, imageUrl } : exercise;
+  });
+}
+
 export function validateAppData(value: unknown): AppData {
   if (!isObject(value)) {
     throw new Error("JSON 根节点必须是对象");
@@ -260,7 +279,7 @@ export function validateAppData(value: unknown): AppData {
 
   return {
     version: typeof value.version === "number" ? value.version : VERSION,
-    exercises,
+    exercises: hydrateExerciseImages(exercises),
     sessions,
     progressUpdates,
   };

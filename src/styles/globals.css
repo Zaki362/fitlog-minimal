@@ -1937,13 +1937,34 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.active-summary__status {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .active-summary__row strong {
   color: var(--muted);
   font-size: 13px;
+  white-space: nowrap;
+}
+
+.active-summary__toggle {
+  min-height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f2ee;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 10px;
 }
 
 .active-summary__bar {
@@ -2070,7 +2091,22 @@ body {
 }
 
 .workout-card__meta {
-  display: none;
+  display: grid;
+  gap: 8px;
+}
+
+.meta-pill {
+  min-height: 36px;
+  border: 0;
+  background: #f1f2ee;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.workout-card__meta .compact-inputs {
+  padding: 10px;
+  border-radius: 8px;
+  background: #f6f7f2;
 }
 
 .segmented--difficulty {
@@ -2117,6 +2153,13 @@ body {
 .brief-note input {
   min-height: 38px;
   background: #f6f7f2;
+}
+
+.brief-note__preview {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .brief-note__button {
@@ -2225,7 +2268,7 @@ body {
   justify-content: center;
   overflow: hidden;
   border-radius: 8px;
-  background: #fbfcf8;
+  background: #ffffff;
   box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.04);
 }
 
@@ -2270,6 +2313,13 @@ img.exercise-illustration--hero {
   object-fit: contain;
   transform: none;
   transform-origin: center;
+}
+
+img.exercise-illustration--custom {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: none;
 }
 
 .exercise-illustration__line,
