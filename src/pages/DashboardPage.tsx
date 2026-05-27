@@ -12,7 +12,6 @@ import {
 } from "../lib/stats";
 import { formatSessionLine, templateMatchesSelected } from "../lib/workout";
 import type { AppData, MuscleGroup, WorkoutSession } from "../types";
-import { MUSCLE_LABELS } from "../types";
 
 type DashboardPageProps = {
   data: AppData;
@@ -25,9 +24,7 @@ type DashboardPageProps = {
 export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession, onOpenSettings }: DashboardPageProps) {
   const recent = getRecentSessions(data, 3);
   const recommendation = getTrainingRecommendation(data);
-  const recommendationGroups = [...recommendation.primaryGroups, ...(recommendation.secondaryGroups ?? [])];
   const lastTrainedMap = getLastTrainedDateByMuscleGroup(data);
-  const recommendationLabel = recommendationGroups.map((group) => MUSCLE_LABELS[group]).join(" + ");
   const heroExercise = data.exercises.find(
     (exercise) => !exercise.isArchived && templateMatchesSelected(exercise, recommendation.primaryGroups),
   );
@@ -60,13 +57,11 @@ export function DashboardPage({ data, onQuickStart, onOpenHistory, onOpenSession
           </svg>
           开始训练
         </button>
-        <p>今日建议：{recommendationLabel || recommendation.title}</p>
       </section>
 
       <section className="panel">
         <div className="section-title">
           <h2>今日任务</h2>
-          <span>素材图 + 身体状态</span>
         </div>
         <DashboardTrainingVisual
           heroExercise={heroExercise}

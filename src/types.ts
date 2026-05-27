@@ -98,6 +98,7 @@ export interface AppData {
   sessions: WorkoutSession[];
   progressUpdates: ProgressUpdate[];
   version: number;
+  updatedAt: string;
 }
 
 export interface TrainingRecommendation {

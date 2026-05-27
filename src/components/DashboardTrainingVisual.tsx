@@ -60,7 +60,7 @@ export function DashboardTrainingVisual({
       <div className="dashboard-visual-card__status">
         <div>
           <strong>身体热力</strong>
-          <span>{groupLabel ? `建议 ${groupLabel}` : "颜色越亮，越近期训练"}</span>
+          <span>{groupLabel ? `${groupLabel} · 按最近训练时间上色` : "颜色越亮，越近期训练"}</span>
         </div>
         <BodyTrainingMap compact lastTrainedMap={lastTrainedMap} selectedGroup={primaryGroup} />
       </div>

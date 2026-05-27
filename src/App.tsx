@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "./components/AppShell";
 import { ActiveWorkoutPage } from "./pages/ActiveWorkoutPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -9,6 +9,7 @@ import { SessionDetailPage } from "./pages/SessionDetailPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { StartWorkoutPage as StartWorkoutView } from "./pages/StartWorkoutPage";
 import { clearData, loadData, resetData, saveData } from "./lib/storage";
+import { loadCloudSyncSettings, pushCloudData, saveCloudSyncSettings } from "./lib/cloudSync";
 import { createId } from "./lib/workout";
 import { todayYmd } from "./lib/date";
 import type {
@@ -63,6 +64,8 @@ export default function App() {
   const [view, setView] = useState<View>({ name: "dashboard" });
   const [startPreset, setStartPreset] = useState<MuscleGroup[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [cloudSettings, setCloudSettings] = useState(loadCloudSyncSettings);
+  const autoSyncReadyRef = useRef(false);
 
   const notify = useCallback((message: string, tone: Toast["tone"] = "success") => {
     const id = createId("toast");
@@ -81,10 +84,39 @@ export default function App() {
 
   const activeTab = useMemo(() => activeTabFromView(view), [view]);
 
+  useEffect(() => {
+    if (!autoSyncReadyRef.current) {
+      autoSyncReadyRef.current = true;
+      return;
+    }
+
+    if (!cloudSettings.autoSync || !cloudSettings.syncId) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void pushCloudData(cloudSettings.syncId as string, data)
+        .then((result) => {
+          setCloudSettings((current) => {
+            const next = saveCloudSyncSettings({
+              ...current,
+              lastPushedAt: result.updatedAt,
+              lastSyncedAt: result.updatedAt,
+            });
+            return next;
+          });
+        })
+        .catch(() => {
+          notify("自动云同步失败，可稍后在设置里手动上传", "warning");
+        });
+    }, 1000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [cloudSettings.autoSync, cloudSettings.syncId, data, notify]);
+
   function commit(mutator: (current: AppData) => AppData) {
     setData((current) => {
-      const next = mutator(current);
-      saveData(next);
+      const next = saveData(mutator(current));
       return next;
     });
   }
@@ -280,8 +312,7 @@ export default function App() {
   }
 
   function importData(next: AppData) {
-    saveData(next);
-    setData(next);
+    setData(saveData(next));
     setView({ name: "dashboard" });
   }
 
@@ -380,7 +411,9 @@ export default function App() {
           notify={notify}
           onBack={() => setView({ name: "dashboard" })}
           onClear={clearAll}
+          cloudSettings={cloudSettings}
           onImport={importData}
+          onCloudSettingsChange={setCloudSettings}
           onReset={restoreSeed}
         />
       ) : null}

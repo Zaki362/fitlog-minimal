@@ -176,6 +176,7 @@ export const seedSessions: WorkoutSession[] = [
 
 export const seedData: AppData = {
   version: VERSION,
+  updatedAt: BASE_TIME,
   exercises: seedExercises,
   sessions: seedSessions,
   progressUpdates: [],

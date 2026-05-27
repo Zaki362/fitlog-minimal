@@ -256,6 +256,29 @@ function hydrateExerciseImages(exercises: ExerciseTemplate[]): ExerciseTemplate[
   });
 }
 
+function latestIsoDate(values: Array<string | undefined>): string {
+  return values
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => b.localeCompare(a))[0] ?? new Date().toISOString();
+}
+
+function deriveDataUpdatedAt(
+  value: Record<string, unknown>,
+  exercises: ExerciseTemplate[],
+  sessions: WorkoutSession[],
+  progressUpdates: ProgressUpdate[],
+): string {
+  if (typeof value.updatedAt === "string" && value.updatedAt) {
+    return value.updatedAt;
+  }
+
+  return latestIsoDate([
+    ...exercises.map((exercise) => exercise.updatedAt),
+    ...sessions.map((session) => session.updatedAt),
+    ...progressUpdates.map((progress) => progress.createdAt),
+  ]);
+}
+
 export function validateAppData(value: unknown): AppData {
   if (!isObject(value)) {
     throw new Error("JSON 根节点必须是对象");
@@ -279,6 +302,7 @@ export function validateAppData(value: unknown): AppData {
 
   return {
     version: typeof value.version === "number" ? value.version : VERSION,
+    updatedAt: deriveDataUpdatedAt(value, exercises, sessions, progressUpdates),
     exercises: hydrateExerciseImages(exercises),
     sessions,
     progressUpdates,
@@ -293,8 +317,7 @@ export function loadData(): LoadDataResult {
 
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) {
-    saveData(seed);
-    return { data: seed };
+    return { data: saveData(seed) };
   }
 
   try {
@@ -307,42 +330,43 @@ export function loadData(): LoadDataResult {
   }
 }
 
-export function saveData(data: AppData): void {
-  if (!hasStorage()) {
-    return;
-  }
+export function saveData(data: AppData, updatedAt = new Date().toISOString()): AppData {
   const normalized: AppData = {
     ...data,
     version: data.version || VERSION,
+    updatedAt,
   };
+  if (!hasStorage()) {
+    return normalized;
+  }
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+  return normalized;
 }
 
 export function resetData(): AppData {
   const next = createSeedData();
-  saveData(next);
-  return next;
+  return saveData(next);
 }
 
 export function clearData(): AppData {
   const empty: AppData = {
     version: VERSION,
+    updatedAt: new Date().toISOString(),
     exercises: [],
     sessions: [],
     progressUpdates: [],
   };
-  saveData(empty);
-  return empty;
+  return saveData(empty, empty.updatedAt);
 }
 
 export function exportJson(data: AppData): string {
-  return JSON.stringify({ ...data, version: data.version || VERSION }, null, 2);
+  return JSON.stringify({ ...data, version: data.version || VERSION, updatedAt: data.updatedAt }, null, 2);
 }
 
 export function importJson(json: string): ImportJsonResult {
   try {
     const data = validateAppData(JSON.parse(json));
-    return { ok: true, data: { ...data, version: data.version || VERSION } };
+    return { ok: true, data: { ...data, version: data.version || VERSION, updatedAt: data.updatedAt } };
   } catch (error) {
     return {
       ok: false,
