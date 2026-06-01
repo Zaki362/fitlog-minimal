@@ -11,7 +11,7 @@ import { StartWorkoutPage as StartWorkoutView } from "./pages/StartWorkoutPage";
 import { TrainingCalendarPage } from "./pages/TrainingCalendarPage";
 import { clearData, loadData, resetData, saveData } from "./lib/storage";
 import { loadCloudSyncSettings, pushCloudData, saveCloudSyncSettings } from "./lib/cloudSync";
-import { createId } from "./lib/workout";
+import { buildWorkoutTitle, createId, sortMuscleGroups } from "./lib/workout";
 import { todayYmd } from "./lib/date";
 import { getDefaultTrainingPlan } from "./lib/trainingPlan";
 import type {
@@ -43,6 +43,50 @@ type Toast = {
 
 function sameRep(a: number | string | null | undefined, b: number | string | null | undefined): boolean {
   return String(a ?? "") === String(b ?? "");
+}
+
+function hasTemplateMetricChange(template: ExerciseTemplate, exercise: SessionExercise): boolean {
+  const weightChanged =
+    exercise.actualWeightKg !== null &&
+    exercise.actualWeightKg !== undefined &&
+    exercise.actualWeightKg !== template.defaultWeightKg;
+  const setsChanged =
+    exercise.actualSets !== null &&
+    exercise.actualSets !== undefined &&
+    exercise.actualSets !== template.targetSets;
+  const repsChanged =
+    exercise.actualReps !== null &&
+    exercise.actualReps !== undefined &&
+    !sameRep(exercise.actualReps, template.targetReps);
+
+  return weightChanged || setsChanged || repsChanged;
+}
+
+function mergeOptionalText(first?: string, second?: string): string {
+  const parts = [first?.trim(), second?.trim()].filter((value): value is string => Boolean(value));
+  return [...new Set(parts)].join("\n");
+}
+
+function mergeDuration(first?: number | null, second?: number | null): number | null {
+  const total = (first ?? 0) + (second ?? 0);
+  return total > 0 ? total : null;
+}
+
+function mergeWorkoutSessions(existing: WorkoutSession, incoming: WorkoutSession): WorkoutSession {
+  const cardio = [...(existing.cardio ?? []), ...(incoming.cardio ?? [])];
+  const muscleGroups = sortMuscleGroups([...existing.muscleGroups, ...incoming.muscleGroups]);
+
+  return {
+    ...existing,
+    title: buildWorkoutTitle(muscleGroups, cardio),
+    muscleGroups,
+    exercises: [...existing.exercises, ...incoming.exercises],
+    cardio: cardio.length ? cardio : undefined,
+    durationMinutes: mergeDuration(existing.durationMinutes, incoming.durationMinutes),
+    overallFeeling: incoming.overallFeeling ?? existing.overallFeeling ?? null,
+    notes: mergeOptionalText(existing.notes, incoming.notes),
+    updatedAt: incoming.updatedAt,
+  };
 }
 
 function activeTabFromView(view: View): MainTab {
@@ -142,6 +186,9 @@ export default function App() {
   }
 
   function saveSession(session: WorkoutSession, updateTemplates = false) {
+    let destinationSessionId = session.id;
+    let mergedSameDay = false;
+
     commit((current) => {
       const progressUpdates = [...current.progressUpdates];
       const exercises = current.exercises.map((template) => {
@@ -150,11 +197,7 @@ export default function App() {
         }
 
         const sessionExercise = session.exercises.find(
-          (exercise) =>
-            exercise.exerciseTemplateId === template.id &&
-            exercise.actualWeightKg !== null &&
-            exercise.actualWeightKg !== undefined &&
-            exercise.actualWeightKg !== template.defaultWeightKg,
+          (exercise) => exercise.exerciseTemplateId === template.id && hasTemplateMetricChange(template, exercise),
         );
 
         if (!sessionExercise) {
@@ -183,16 +226,25 @@ export default function App() {
           updatedAt: new Date().toISOString(),
         };
       });
+      const existingSession = current.sessions.find((item) => item.date === session.date);
+      const sessions = existingSession
+        ? current.sessions.map((item) => (item.id === existingSession.id ? mergeWorkoutSessions(item, session) : item))
+        : [session, ...current.sessions];
+
+      if (existingSession) {
+        destinationSessionId = existingSession.id;
+        mergedSameDay = true;
+      }
 
       return {
         ...current,
         exercises,
         progressUpdates,
-        sessions: [session, ...current.sessions],
+        sessions,
       };
     });
-    notify("训练已保存");
-    setView({ name: "session-detail", sessionId: session.id });
+    notify(mergedSameDay ? "已合并到当天训练记录" : "训练已保存");
+    setView({ name: "session-detail", sessionId: destinationSessionId });
   }
 
   function updateSession(session: WorkoutSession) {

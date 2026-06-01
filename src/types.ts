@@ -14,6 +14,8 @@ export type ExerciseUnit = "kg" | "bodyweight" | "time" | "distance" | "mixed";
 
 export type Difficulty = "easy" | "good" | "hard" | "failed";
 
+export type OverallFeeling = "great" | "normal" | "tired" | "bad";
+
 export interface ExerciseTemplate {
   id: string;
   name: string;
@@ -39,7 +41,7 @@ export interface WorkoutSession {
   exercises: SessionExercise[];
   cardio?: CardioEntry[];
   durationMinutes?: number | null;
-  overallFeeling?: "great" | "normal" | "tired" | "bad" | null;
+  overallFeeling?: OverallFeeling | null;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -183,4 +185,11 @@ export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   good: "正好",
   hard: "吃力",
   failed: "失败 / 不标准",
+};
+
+export const OVERALL_FEELING_LABELS: Record<OverallFeeling, string> = {
+  great: "很轻松",
+  normal: "状态正好",
+  tired: "有点吃力",
+  bad: "不在状态",
 };
