@@ -24,7 +24,6 @@ export function WeightAdjuster({ value, step, min = 0, max, disabled = false, on
   const startY = useRef<number | null>(null);
   const residue = useRef(0);
   const latest = useRef(value);
-  const didDrag = useRef(false);
   const [dragging, setDragging] = useState(false);
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState(value === null ? "" : formatNumber(value));
@@ -43,7 +42,6 @@ export function WeightAdjuster({ value, step, min = 0, max, disabled = false, on
     const combined = residue.current + delta;
     const steps = Math.trunc(combined / 24);
     if (steps !== 0) {
-      didDrag.current = true;
       onChange(normalize(clamp((latest.current ?? 0) + steps * actualStep, min, max)));
       residue.current = combined - steps * 24;
       startY.current = event.clientY;
@@ -52,10 +50,6 @@ export function WeightAdjuster({ value, step, min = 0, max, disabled = false, on
 
   function openInput() {
     if (disabled) return;
-    if (didDrag.current) {
-      didDrag.current = false;
-      return;
-    }
     setInputValue(value === null ? "" : formatNumber(value));
     setEditing(true);
   }
@@ -86,36 +80,52 @@ export function WeightAdjuster({ value, step, min = 0, max, disabled = false, on
         >
           -
         </button>
-        <button
-          aria-label="上下滑动调整重量，点击精确输入"
-          className="weight-adjuster__display"
-          type="button"
-          disabled={disabled}
-          onClick={openInput}
-          onPointerDown={(event) => {
-            if (disabled) return;
-            startY.current = event.clientY;
-            residue.current = 0;
-            didDrag.current = false;
-            setDragging(true);
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerMove={handlePointerMove}
-          onPointerUp={(event) => {
-            setDragging(false);
-            startY.current = null;
-            residue.current = 0;
-            event.currentTarget.releasePointerCapture(event.pointerId);
-          }}
-          onPointerCancel={() => {
-            setDragging(false);
-            startY.current = null;
-            residue.current = 0;
-          }}
-        >
-          <strong>{value === null ? "无重量" : formatNumber(value)}</strong>
-          {value === null ? null : <span>kg</span>}
-        </button>
+        <div className="weight-adjuster__center">
+          <button
+            aria-label="点击精确输入重量"
+            className="weight-adjuster__display"
+            type="button"
+            disabled={disabled}
+            onClick={openInput}
+          >
+            <strong>{value === null ? "无重量" : formatNumber(value)}</strong>
+            {value === null ? null : <span>kg</span>}
+          </button>
+          <button
+            aria-label="按住上下滑动调整重量"
+            className="weight-adjuster__drag"
+            type="button"
+            disabled={disabled}
+            onPointerDown={(event) => {
+              if (disabled) return;
+              startY.current = event.clientY;
+              residue.current = 0;
+              setDragging(true);
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={(event) => {
+              setDragging(false);
+              startY.current = null;
+              residue.current = 0;
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+            }}
+            onPointerCancel={(event) => {
+              setDragging(false);
+              startY.current = null;
+              residue.current = 0;
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+            }}
+          >
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+          </button>
+        </div>
         <button
           className="weight-adjuster__control"
           type="button"
@@ -126,7 +136,7 @@ export function WeightAdjuster({ value, step, min = 0, max, disabled = false, on
           +
         </button>
       </div>
-      <span className="weight-adjuster__hint">上下滑动调整重量，点击数字精确输入</span>
+      <span className="weight-adjuster__hint">点数字精确输入，按住小条上下滑动</span>
 
       {editing ? (
         <div className="weight-adjuster__input">

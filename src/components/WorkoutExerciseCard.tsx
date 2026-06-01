@@ -24,21 +24,14 @@ export function WorkoutExerciseCard({ exercise, onChange }: WorkoutExerciseCardP
   const workoutNote = exercise.notes ?? "";
 
   return (
-    <article className={`workout-card ${exercise.completed ? "is-completed" : ""}`}>
+    <article className="workout-card">
       <div className="workout-card__top">
-        <label className="check-row workout-card__check">
-          <input
-            type="checkbox"
-            checked={exercise.completed}
-            onChange={(event) => onChange({ ...exercise, completed: event.target.checked })}
-          />
-          <span>
-            <strong>{exercise.name}</strong>
-            <small>
-              {MUSCLE_LABELS[exercise.muscleGroup]} · {planLine}
-            </small>
-          </span>
-        </label>
+        <div className="workout-card__identity">
+          <strong>{exercise.name}</strong>
+          <small>
+            {MUSCLE_LABELS[exercise.muscleGroup]} · {planLine}
+          </small>
+        </div>
         <strong className="workout-card__weight">{topWeight}</strong>
       </div>
 

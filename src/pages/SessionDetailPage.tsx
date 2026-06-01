@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { MuscleChip } from "../components/MuscleChip";
-import { DIFFICULTY_LABELS, MUSCLE_LABELS } from "../types";
+import { DIFFICULTY_LABELS, MUSCLE_LABELS, OVERALL_FEELING_LABELS } from "../types";
 import type { AppData, CardioEntry, SessionExercise, WorkoutSession } from "../types";
 import { formatDateCN, formatInputDate } from "../lib/date";
 import { formatCardioEntry, formatPlan, normalizeOptionalNumber } from "../lib/workout";
@@ -147,6 +147,7 @@ export function SessionDetailPage({
               ))}
             </div>
             {session.durationMinutes ? <p className="muted">时长 {session.durationMinutes} 分钟</p> : null}
+            {session.overallFeeling ? <p className="muted">状态 {OVERALL_FEELING_LABELS[session.overallFeeling]}</p> : null}
             {session.notes ? <p>{session.notes}</p> : null}
           </>
         )}

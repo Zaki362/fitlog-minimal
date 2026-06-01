@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { MuscleChip } from "../components/MuscleChip";
 import { WorkoutExerciseCard } from "../components/WorkoutExerciseCard";
 import { formatDateCN } from "../lib/date";
 import { buildWorkoutTitle, createId, inferSessionGroups, normalizeOptionalNumber } from "../lib/workout";
-import type { ActiveWorkoutDraft, AppData, CardioEntry, SessionExercise, WorkoutSession } from "../types";
+import { OVERALL_FEELING_LABELS } from "../types";
+import type { ActiveWorkoutDraft, AppData, CardioEntry, OverallFeeling, SessionExercise, WorkoutSession } from "../types";
 
 type ActiveWorkoutPageProps = {
   data: AppData;
@@ -18,18 +19,6 @@ function sameRep(a: number | string | null | undefined, b: number | string | nul
   return String(a ?? "") === String(b ?? "");
 }
 
-function isExerciseModified(current: SessionExercise, original?: SessionExercise): boolean {
-  if (!original) return true;
-  return (
-    current.completed ||
-    current.actualWeightKg !== original.actualWeightKg ||
-    current.actualSets !== original.actualSets ||
-    !sameRep(current.actualReps, original.actualReps) ||
-    current.difficulty !== original.difficulty ||
-    (current.notes ?? "") !== (original.notes ?? "")
-  );
-}
-
 function isFilledCardioEntry(entry: CardioEntry): boolean {
   return Boolean(entry.durationMinutes || entry.distanceKm || entry.notes?.trim());
 }
@@ -38,6 +27,8 @@ function hasCardioEntry(cardio: CardioEntry[]): boolean {
   return cardio.some(isFilledCardioEntry);
 }
 
+const feelingOptions: OverallFeeling[] = ["great", "normal", "tired", "bad"];
+
 export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: ActiveWorkoutPageProps) {
   const title = draft.title;
   const [exercises, setExercises] = useState<SessionExercise[]>(draft.exercises);
@@ -45,12 +36,11 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
   const [notes, setNotes] = useState("");
   const [duration, setDuration] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const [pendingSession, setPendingSession] = useState<WorkoutSession | null>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [overallFeeling, setOverallFeeling] = useState<OverallFeeling>("normal");
+  const [syncTemplateUpdates, setSyncTemplateUpdates] = useState(false);
 
-  const originalExercises = useMemo(() => new Map(draft.exercises.map((exercise) => [exercise.id, exercise])), [draft.exercises]);
-  const completedCount = exercises.filter((exercise) => exercise.completed).length;
-  const allCompleted = exercises.length > 0 && completedCount === exercises.length;
-  const progress = exercises.length ? Math.round((completedCount / exercises.length) * 100) : 0;
+  const hasWorkoutContent = exercises.length > 0 || hasCardioEntry(cardio) || Boolean(notes.trim()) || Boolean(duration.trim());
   const templateDifferences = exercises.filter((exercise) => {
     if (!exercise.exerciseTemplateId) {
       return false;
@@ -75,14 +65,8 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
 
     return weightChanged || setsChanged || repsChanged;
   });
-  const hasWorkoutChanges = useMemo(
-    () =>
-      exercises.some((exercise) => isExerciseModified(exercise, originalExercises.get(exercise.id))) ||
-      hasCardioEntry(cardio) ||
-      Boolean(notes.trim()) ||
-      Boolean(duration.trim()),
-    [cardio, duration, exercises, notes, originalExercises],
-  );
+  const hasWorkoutChanges = hasWorkoutContent;
+  const canFinishWorkout = hasWorkoutContent;
 
   useEffect(() => {
     if (!hasWorkoutChanges) {
@@ -102,46 +86,38 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
     setExercises((current) => current.map((item) => (item.id === next.id ? next : item)));
   }
 
-  function toggleAllCompleted() {
-    setExercises((current) => current.map((exercise) => ({ ...exercise, completed: !allCompleted })));
-  }
-
-  function buildSession(): WorkoutSession {
+  function buildSession(feeling: OverallFeeling): WorkoutSession {
     const now = new Date().toISOString();
     const savedCardio = cardio.filter(isFilledCardioEntry);
+    const finalizedExercises = exercises.map((exercise) => ({ ...exercise, completed: true }));
     return {
       id: createId("session"),
       date: draft.date,
       title: title.trim() || buildWorkoutTitle(draft.muscleGroups, savedCardio),
-      muscleGroups: inferSessionGroups({ ...draft, cardio: savedCardio }, exercises),
-      exercises,
+      muscleGroups: inferSessionGroups({ ...draft, cardio: savedCardio }, finalizedExercises),
+      exercises: finalizedExercises,
       cardio: savedCardio.length ? savedCardio : undefined,
       durationMinutes: normalizeOptionalNumber(duration),
-      overallFeeling: null,
+      overallFeeling: feeling,
       notes: notes.trim(),
       createdAt: now,
       updatedAt: now,
     };
   }
 
-  function saveWorkout() {
-    if (!hasWorkoutChanges) {
-      notify("至少完成一个动作、填写有氧或补充备注后再保存", "warning");
+  function openFinishDialog() {
+    if (!canFinishWorkout) {
+      notify("先选择动作、填写有氧或补充备注后再完成", "warning");
       return;
     }
 
-    const session = buildSession();
-    if (templateDifferences.length) {
-      setPendingSession(session);
-      return;
-    }
-    onSave(session, false);
+    setSyncTemplateUpdates(false);
+    setFinishOpen(true);
   }
 
-  function finishPending(updateTemplates: boolean) {
-    if (!pendingSession) return;
-    onSave(pendingSession, updateTemplates);
-    setPendingSession(null);
+  function finishWorkout() {
+    onSave(buildSession(overallFeeling), syncTemplateUpdates && templateDifferences.length > 0);
+    setFinishOpen(false);
   }
 
   return (
@@ -162,19 +138,10 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
         <div className="active-summary__row">
           <span>{formatDateCN(draft.date)}</span>
           <div className="active-summary__status">
-            <strong>
-              {completedCount} / {exercises.length} 已完成
-            </strong>
-            {exercises.length ? (
-              <button className="active-summary__toggle" type="button" onClick={toggleAllCompleted}>
-                {allCompleted ? "全部取消" : "全部完成"}
-              </button>
-            ) : null}
+            <strong>{exercises.length ? `${exercises.length} 个动作` : "自定义训练"}</strong>
           </div>
         </div>
-        <div className="active-summary__bar" aria-label={`完成进度 ${progress}%`}>
-          <span style={{ width: `${progress}%` }} />
-        </div>
+        <p className="active-summary__note">查看动作细节和本次数值，结束时一次确认完成。</p>
         <div className="chip-line active-summary__chips">
           {draft.muscleGroups.map((group) => (
             <MuscleChip group={group} key={group} muted />
@@ -273,8 +240,8 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
       </section>
 
       <div className="sticky-actions sticky-actions--single">
-        <button className="button button--primary button--block" type="button" onClick={saveWorkout}>
-          保存训练
+        <button className="button button--primary button--block" type="button" onClick={openFinishDialog}>
+          完成训练
         </button>
       </div>
 
@@ -288,15 +255,53 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
         onConfirm={onCancel}
       />
 
-      <ConfirmDialog
-        open={Boolean(pendingSession)}
-        title="更新模板数值？"
-        description={`${templateDifferences.length} 个动作的本次重量、组数或次数和模板不同，可以把进步写回动作库。`}
-        confirmLabel="更新模板"
-        cancelLabel="仅保存本次"
-        onCancel={() => finishPending(false)}
-        onConfirm={() => finishPending(true)}
-      />
+      {finishOpen ? (
+        <div className="dialog-backdrop" role="presentation">
+          <section className="dialog finish-dialog" role="dialog" aria-modal="true" aria-labelledby="finish-title">
+            <h2 id="finish-title">完成这次训练？</h2>
+            <p>确认后，本次计划里的动作会统一记为完成。</p>
+
+            <div className="finish-dialog__section">
+              <strong>今天训练状态怎么样？</strong>
+              <div className="segmented finish-dialog__feelings" role="group" aria-label="训练状态">
+                {feelingOptions.map((feeling) => (
+                  <button
+                    className={overallFeeling === feeling ? "is-selected" : ""}
+                    key={feeling}
+                    type="button"
+                    onClick={() => setOverallFeeling(feeling)}
+                  >
+                    {OVERALL_FEELING_LABELS[feeling]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {templateDifferences.length ? (
+              <label className="finish-dialog__template-toggle">
+                <input
+                  type="checkbox"
+                  checked={syncTemplateUpdates}
+                  onChange={(event) => setSyncTemplateUpdates(event.target.checked)}
+                />
+                <span>
+                  <strong>同步更新动作库模板</strong>
+                  <small>{templateDifferences.length} 个动作的重量、组数或次数有变化</small>
+                </span>
+              </label>
+            ) : null}
+
+            <div className="dialog__actions">
+              <button className="button button--ghost" type="button" onClick={() => setFinishOpen(false)}>
+                取消
+              </button>
+              <button className="button button--primary" type="button" onClick={finishWorkout}>
+                确认完成
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }
