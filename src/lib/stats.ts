@@ -171,14 +171,17 @@ export function getTrainingRecommendation(data: AppData, referenceYmd = todayYmd
       ["chest", "back", "shoulder"].includes(stale.group) && getDaysSinceLastTrained("abs", data, referenceYmd) !== null
         ? (["abs"] as MuscleGroup[])
         : undefined;
+    const reason = Number.isFinite(stale.daysSince)
+      ? `${groupNameInSentence(stale.group)}已经 ${stale.daysSince} 天没练，可以安排一次${groupNameInSentence(
+          stale.group,
+        )}训练。`
+      : `${groupNameInSentence(stale.group)}还没有训练记录，可以安排一次${groupNameInSentence(stale.group)}训练。`;
 
     return {
       primaryGroups: [stale.group],
       secondaryGroups,
       title: `建议练${MUSCLE_LABELS[stale.group]}`,
-      reason: `${groupNameInSentence(stale.group)}已经 ${stale.daysSince} 天没练，可以安排一次${groupNameInSentence(
-        stale.group,
-      )}训练。`,
+      reason,
       ctaLabel: "按建议开练",
     };
   }
