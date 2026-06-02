@@ -186,8 +186,9 @@ export default function App() {
   }
 
   function saveSession(session: WorkoutSession, updateTemplates = false) {
-    let destinationSessionId = session.id;
-    let mergedSameDay = false;
+    const sameDaySession = data.sessions.find((item) => item.date === session.date);
+    const destinationSessionId = sameDaySession?.id ?? session.id;
+    const mergedSameDay = Boolean(sameDaySession);
 
     commit((current) => {
       const progressUpdates = [...current.progressUpdates];
@@ -230,11 +231,6 @@ export default function App() {
       const sessions = existingSession
         ? current.sessions.map((item) => (item.id === existingSession.id ? mergeWorkoutSessions(item, session) : item))
         : [session, ...current.sessions];
-
-      if (existingSession) {
-        destinationSessionId = existingSession.id;
-        mergedSameDay = true;
-      }
 
       return {
         ...current,
