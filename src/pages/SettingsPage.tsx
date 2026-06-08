@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { exportJson, exportMarkdown, importJson } from "../lib/storage";
+import {
+  exportJson,
+  exportMarkdown,
+  importJson,
+  loadLocalDataBackupSummary,
+  restoreLocalDataBackup,
+  saveLocalDataBackup,
+  type LocalDataBackupSummary,
+} from "../lib/storage";
 import { todayYmd } from "../lib/date";
 import { downloadTextFile } from "../lib/workout";
 import {
@@ -24,23 +32,18 @@ type SettingsPageProps = {
   onImport: (data: AppData) => void;
   onReset: () => void;
   onClear: () => void;
+  pwaStatus: {
+    canInstall: boolean;
+    isOnline: boolean;
+    isStandalone: boolean;
+    serviceWorkerSupported: boolean;
+    updateAvailable: boolean;
+    onInstall: () => void;
+    onUpdate: () => void;
+  };
 };
 
 type SyncBusyState = "save" | "push" | "pull" | null;
-
-type NavigatorWithStandalone = Navigator & {
-  standalone?: boolean;
-};
-
-function isStandalonePwa(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    Boolean((window.navigator as NavigatorWithStandalone).standalone)
-  );
-}
 
 function formatSyncTime(value: string | undefined): string {
   if (!value) {
@@ -54,6 +57,14 @@ function formatSyncTime(value: string | undefined): string {
   });
 }
 
+function formatBackupSummary(summary: LocalDataBackupSummary | null): string {
+  if (!summary) {
+    return "暂无备份";
+  }
+
+  return `${formatSyncTime(summary.createdAt)} · ${summary.sessionCount} 条记录`;
+}
+
 export function SettingsPage({
   data,
   cloudSettings,
@@ -63,16 +74,18 @@ export function SettingsPage({
   onImport,
   onReset,
   onClear,
+  pwaStatus,
 }: SettingsPageProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmCloudPull, setConfirmCloudPull] = useState(false);
+  const [confirmBackupRestore, setConfirmBackupRestore] = useState(false);
   const [syncSecret, setSyncSecret] = useState("");
   const [generatedSecret, setGeneratedSecret] = useState("");
   const [syncBusy, setSyncBusy] = useState<SyncBusyState>(null);
-  const [standalone] = useState(isStandalonePwa);
   const [cloudHealth, setCloudHealth] = useState<CloudHealth | null>(null);
+  const [backupSummary, setBackupSummary] = useState(loadLocalDataBackupSummary);
 
   useEffect(() => {
     let ignore = false;
@@ -103,6 +116,14 @@ export function SettingsPage({
     return saved;
   }
 
+  function createLocalBackup(reason: string) {
+    const summary = saveLocalDataBackup(data, reason);
+    if (summary) {
+      setBackupSummary(summary);
+    }
+    return summary;
+  }
+
   async function handleImport(file: File | null) {
     if (!file) {
       return;
@@ -115,6 +136,7 @@ export function SettingsPage({
         notify(result.error, "danger");
         return;
       }
+      createLocalBackup("JSON 导入前自动备份");
       onImport(result.data);
       notify("导入成功");
     } catch {
@@ -188,6 +210,7 @@ export function SettingsPage({
     try {
       setSyncBusy("pull");
       const snapshot = await pullCloudData(cloudSettings.syncId);
+      createLocalBackup("云端恢复前自动备份");
       persistCloudSettings({
         ...cloudSettings,
         lastPulledAt: snapshot.updatedAt,
@@ -203,6 +226,17 @@ export function SettingsPage({
     }
   }
 
+  function handleRestoreLocalBackup() {
+    const result = restoreLocalDataBackup();
+    if (!result.ok) {
+      notify(result.error, "danger");
+      return;
+    }
+    onImport(result.data);
+    notify("已恢复最近本机备份");
+    setConfirmBackupRestore(false);
+  }
+
   return (
     <div className="page">
       <header className="page-header">
@@ -215,7 +249,11 @@ export function SettingsPage({
         </div>
       </header>
 
-      <section className="panel">
+      <section className="panel settings-section">
+        <div className="section-title">
+          <h2>App 状态</h2>
+          <span>{pwaStatus.isStandalone ? "已安装" : "网页模式"}</span>
+        </div>
         <div className="settings-grid">
           <div>
             <span>动作</span>
@@ -230,22 +268,108 @@ export function SettingsPage({
             <strong>{data.progressUpdates.length}</strong>
           </div>
         </div>
+        <div className="pwa-status-grid">
+          <div>
+            <span>离线缓存</span>
+            <strong>{pwaStatus.serviceWorkerSupported ? "支持" : "不支持"}</strong>
+          </div>
+          <div>
+            <span>网络</span>
+            <strong>{pwaStatus.isOnline ? "在线" : "离线"}</strong>
+          </div>
+          <div>
+            <span>版本</span>
+            <strong>{pwaStatus.updateAvailable ? "有新版" : "最新"}</strong>
+          </div>
+        </div>
+        <div className="settings-action-grid">
+          <button
+            className="button button--primary button--block"
+            type="button"
+            disabled={pwaStatus.isStandalone && !pwaStatus.canInstall}
+            onClick={pwaStatus.onInstall}
+          >
+            {pwaStatus.canInstall ? "安装到设备" : pwaStatus.isStandalone ? "已安装" : "安装方式"}
+          </button>
+          <button
+            className="button button--secondary button--block"
+            type="button"
+            disabled={!pwaStatus.updateAvailable}
+            onClick={pwaStatus.onUpdate}
+          >
+            更新
+          </button>
+        </div>
       </section>
 
-      <section className="panel">
+      <section className="panel settings-section">
         <div className="section-title">
-          <h2>iPhone 安装</h2>
-          <span>{standalone ? "已用 App 模式打开" : "Safari 添加到主屏幕"}</span>
+          <h2>备份与迁移</h2>
+          <span>{formatBackupSummary(backupSummary)}</span>
         </div>
-        <div className="asset-credit">
-          <strong>推荐用法：</strong>用 iPhone Safari 打开 Vercel 地址，点分享按钮，选择「添加到主屏幕」。
-          安装后会使用独立窗口、主屏幕图标和 iOS 安全区布局。
+        <div className="backup-card">
+          <strong>{backupSummary ? backupSummary.reason : "还没有本机备份"}</strong>
+          <span>
+            {backupSummary
+              ? `数据时间 ${formatSyncTime(backupSummary.dataUpdatedAt)} · ${backupSummary.exerciseCount} 个动作`
+              : "重要操作前会自动保存最近一次本机备份"}
+          </span>
         </div>
+        <div className="settings-action-grid">
+          <button
+            className="button button--secondary button--block"
+            type="button"
+            onClick={() => {
+              createLocalBackup("手动本机备份");
+              notify("本机备份已保存");
+            }}
+          >
+            本机备份
+          </button>
+          <button
+            className="button button--primary button--block"
+            type="button"
+            disabled={!backupSummary}
+            onClick={() => setConfirmBackupRestore(true)}
+          >
+            恢复备份
+          </button>
+          <button
+            className="button button--secondary button--block"
+            type="button"
+            onClick={() => {
+              downloadTextFile(`fitlog-${todayYmd()}.json`, exportJson(data), "application/json");
+              notify("JSON 已导出");
+            }}
+          >
+            导出 JSON
+          </button>
+          <button className="button button--secondary button--block" type="button" onClick={() => inputRef.current?.click()}>
+            导入 JSON
+          </button>
+          <button
+            className="button button--secondary button--block"
+            type="button"
+            onClick={() => {
+              downloadTextFile(`fitlog-${todayYmd()}.md`, exportMarkdown(data), "text/markdown");
+              notify("Markdown 已导出");
+            }}
+          >
+            导出 Markdown
+          </button>
+        </div>
+        <input
+          ref={inputRef}
+          className="file-input file-input--hidden"
+          type="file"
+          accept="application/json,.json"
+          onChange={(event) => void handleImport(event.target.files?.[0] ?? null)}
+        />
       </section>
 
-      <section className="panel">
+      <section className="panel settings-section">
         <div className="section-title">
-          <h2>云同步</h2>
+          <h2>多设备同步</h2>
           <span>{cloudSettings.syncId ? cloudSettings.syncLabel || "已连接" : "未设置"}</span>
         </div>
         <div className="cloud-sync-card">
@@ -301,7 +425,7 @@ export function SettingsPage({
             <span>上次上传：{formatSyncTime(cloudSettings.lastPushedAt)}</span>
             <span>上次恢复：{formatSyncTime(cloudSettings.lastPulledAt)}</span>
           </div>
-          <div className="button-stack">
+          <div className="settings-action-grid">
             <button
               className="button button--primary button--block"
               type="button"
@@ -330,58 +454,15 @@ export function SettingsPage({
               关闭云同步
             </button>
           </div>
-          <p>
-            同步码相当于这份训练数据的钥匙。换手机时，在新设备输入同一个同步码，然后点「从云端恢复到本机」。
-          </p>
         </div>
       </section>
 
-      <section className="panel">
+      <section className="panel settings-section">
         <div className="section-title">
-          <h2>导出</h2>
+          <h2>危险操作</h2>
+          <span>不可撤销</span>
         </div>
-        <div className="button-stack">
-          <button
-            className="button button--primary button--block"
-            type="button"
-            onClick={() => {
-              downloadTextFile(`fitlog-${todayYmd()}.json`, exportJson(data), "application/json");
-              notify("JSON 已导出");
-            }}
-          >
-            导出 JSON
-          </button>
-          <button
-            className="button button--secondary button--block"
-            type="button"
-            onClick={() => {
-              downloadTextFile(`fitlog-${todayYmd()}.md`, exportMarkdown(data), "text/markdown");
-              notify("Markdown 已导出");
-            }}
-          >
-            导出 Markdown
-          </button>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="section-title">
-          <h2>导入</h2>
-        </div>
-        <input
-          ref={inputRef}
-          className="file-input"
-          type="file"
-          accept="application/json,.json"
-          onChange={(event) => void handleImport(event.target.files?.[0] ?? null)}
-        />
-      </section>
-
-      <section className="panel">
-        <div className="section-title">
-          <h2>重置</h2>
-        </div>
-        <div className="button-stack">
+        <div className="settings-action-grid">
           <button className="button button--secondary button--block" type="button" onClick={() => setConfirmReset(true)}>
             恢复初始数据
           </button>
@@ -391,15 +472,6 @@ export function SettingsPage({
         </div>
       </section>
 
-      <section className="panel">
-        <div className="section-title">
-          <h2>插画来源</h2>
-        </div>
-        <p className="asset-credit">
-          动作插画来自 Open Training / Everkinetic，使用 CC BY-SA 3.0 授权；无匹配素材的动作使用本地绘制线稿。
-        </p>
-      </section>
-
       <ConfirmDialog
         open={confirmReset}
         title="恢复初始数据？"
@@ -407,6 +479,7 @@ export function SettingsPage({
         confirmLabel="恢复"
         onCancel={() => setConfirmReset(false)}
         onConfirm={() => {
+          createLocalBackup("恢复初始数据前自动备份");
           onReset();
           setConfirmReset(false);
         }}
@@ -420,6 +493,7 @@ export function SettingsPage({
         confirmLabel="清空"
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => {
+          createLocalBackup("清空数据前自动备份");
           onClear();
           setConfirmClear(false);
         }}
@@ -432,6 +506,15 @@ export function SettingsPage({
         confirmLabel="恢复"
         onCancel={() => setConfirmCloudPull(false)}
         onConfirm={() => void handlePullCloud()}
+      />
+
+      <ConfirmDialog
+        open={confirmBackupRestore}
+        title="恢复最近本机备份？"
+        description="当前数据会被最近一次本机备份覆盖。"
+        confirmLabel="恢复"
+        onCancel={() => setConfirmBackupRestore(false)}
+        onConfirm={handleRestoreLocalBackup}
       />
     </div>
   );

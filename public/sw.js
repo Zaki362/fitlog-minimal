@@ -1,6 +1,7 @@
-const CACHE_NAME = "fitlog-minimal-v2";
+const CACHE_NAME = "fitlog-minimal-v3";
 const APP_SHELL = [
   "/",
+  "/offline.html",
   "/manifest.webmanifest",
   "/icon.svg",
   "/apple-touch-icon.png",
@@ -12,7 +13,6 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => undefined),
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -26,6 +26,45 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) {
+    return cached;
+  }
+
+  const response = await fetch(request);
+  if (response.ok) {
+    const copy = response.clone();
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, copy);
+  }
+  return response;
+}
+
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const copy = response.clone();
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, copy);
+    }
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) {
+      return cached;
+    }
+    return (await caches.match("/offline.html")) || Response.error();
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") {
     return;
@@ -36,16 +75,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (!response.ok) {
-          return response;
-        }
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/"))),
-  );
+  if (event.request.mode === "navigate") {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  if (
+    url.origin === self.location.origin &&
+    (url.pathname.startsWith("/assets/") || ["image", "font", "style", "script"].includes(event.request.destination))
+  ) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+
+  event.respondWith(networkFirst(event.request));
 });

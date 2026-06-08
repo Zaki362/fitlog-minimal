@@ -24,6 +24,7 @@ import {
 } from "./trainingPlan";
 
 export const STORAGE_KEY = "fitlog_minimal_v1";
+export const LOCAL_BACKUP_KEY = "fitlog_minimal_local_backup_v1";
 const VERSION = TRAINING_PLAN_VERSION;
 
 export type LoadDataResult = {
@@ -40,6 +41,14 @@ export type ImportJsonResult =
       ok: false;
       error: string;
     };
+
+export type LocalDataBackupSummary = {
+  createdAt: string;
+  reason: string;
+  dataUpdatedAt: string;
+  exerciseCount: number;
+  sessionCount: number;
+};
 
 function hasStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -407,6 +416,73 @@ export function saveData(data: AppData, updatedAt = new Date().toISOString()): A
   }
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   return normalized;
+}
+
+export function saveLocalDataBackup(data: AppData, reason: string): LocalDataBackupSummary | null {
+  if (!hasStorage()) {
+    return null;
+  }
+
+  const normalized = ensureTrainingPlan({ ...data, version: data.version || VERSION, updatedAt: data.updatedAt });
+  const summary: LocalDataBackupSummary = {
+    createdAt: new Date().toISOString(),
+    reason,
+    dataUpdatedAt: normalized.updatedAt,
+    exerciseCount: normalized.exercises.length,
+    sessionCount: normalized.sessions.length,
+  };
+
+  window.localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify({ ...summary, data: normalized }));
+  return summary;
+}
+
+export function loadLocalDataBackupSummary(): LocalDataBackupSummary | null {
+  if (!hasStorage()) {
+    return null;
+  }
+
+  const raw = window.localStorage.getItem(LOCAL_BACKUP_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<LocalDataBackupSummary>;
+    if (typeof parsed.createdAt !== "string" || typeof parsed.reason !== "string") {
+      return null;
+    }
+    return {
+      createdAt: parsed.createdAt,
+      reason: parsed.reason,
+      dataUpdatedAt: typeof parsed.dataUpdatedAt === "string" ? parsed.dataUpdatedAt : parsed.createdAt,
+      exerciseCount: typeof parsed.exerciseCount === "number" ? parsed.exerciseCount : 0,
+      sessionCount: typeof parsed.sessionCount === "number" ? parsed.sessionCount : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function restoreLocalDataBackup(): ImportJsonResult {
+  if (!hasStorage()) {
+    return { ok: false, error: "当前环境不支持本机备份" };
+  }
+
+  const raw = window.localStorage.getItem(LOCAL_BACKUP_KEY);
+  if (!raw) {
+    return { ok: false, error: "没有可恢复的本机备份" };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const data = validateAppData(isObject(parsed) && "data" in parsed ? parsed.data : parsed);
+    return { ok: true, data };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "本机备份无法恢复",
+    };
+  }
 }
 
 export function resetData(): AppData {
