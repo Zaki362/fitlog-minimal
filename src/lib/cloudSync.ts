@@ -2,6 +2,8 @@ import type { AppData } from "../types";
 import { validateAppData } from "./storage";
 
 const CLOUD_SYNC_SETTINGS_KEY = "fitlog_minimal_cloud_sync_v1";
+const LOCAL_API_DISABLED_MESSAGE =
+  "当前是普通本地预览，未启动云同步接口。云同步需要部署后使用，或用 Vercel Dev 单独测试。";
 
 export type CloudSyncSettings = {
   syncId: string | null;
@@ -36,6 +38,16 @@ const emptySettings: CloudSyncSettings = {
 
 function hasStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function shouldUseCloudApi(): boolean {
+  return import.meta.env.PROD || import.meta.env.VITE_ENABLE_CLOUD_SYNC_API === "1";
+}
+
+function assertCloudApiAvailable(): void {
+  if (!shouldUseCloudApi()) {
+    throw new Error(LOCAL_API_DISABLED_MESSAGE);
+  }
 }
 
 function isHex64(value: string): boolean {
@@ -122,6 +134,7 @@ async function readError(response: Response): Promise<string> {
 }
 
 export async function pullCloudData(syncId: string): Promise<CloudSnapshot> {
+  assertCloudApiAvailable();
   const response = await fetch(`/api/sync?syncId=${encodeURIComponent(syncId)}`, {
     method: "GET",
     headers: { Accept: "application/json" },
@@ -137,6 +150,7 @@ export async function pullCloudData(syncId: string): Promise<CloudSnapshot> {
 }
 
 export async function pushCloudData(syncId: string, data: AppData): Promise<CloudPushResult> {
+  assertCloudApiAvailable();
   const response = await fetch("/api/sync", {
     method: "PUT",
     headers: {
@@ -155,6 +169,14 @@ export async function pushCloudData(syncId: string, data: AppData): Promise<Clou
 }
 
 export async function checkCloudHealth(): Promise<CloudHealth> {
+  if (!shouldUseCloudApi()) {
+    return {
+      ok: false,
+      configured: false,
+      storage: "upstash-redis",
+      message: LOCAL_API_DISABLED_MESSAGE,
+    };
+  }
   const response = await fetch("/api/sync?health=1", {
     method: "GET",
     headers: { Accept: "application/json" },

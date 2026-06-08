@@ -1063,9 +1063,31 @@ textarea:focus {
   padding: 14px;
 }
 
+.settings-section {
+  gap: 10px;
+}
+
+.settings-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-action-grid .button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.cloud-sync-card .settings-action-grid {
+  grid-template-columns: 1fr;
+}
+
 .file-input {
   padding: 10px;
   background: var(--card);
+}
+
+.file-input--hidden {
+  display: none;
 }
 
 .asset-credit {
@@ -1081,6 +1103,54 @@ textarea:focus {
 
 .asset-credit strong {
   color: var(--text);
+}
+
+.pwa-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pwa-status-grid > div {
+  display: grid;
+  gap: 5px;
+  min-height: 64px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.pwa-status-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.pwa-status-grid strong {
+  font-size: 15px;
+}
+
+.pwa-actions {
+  margin-top: 12px;
+}
+
+.backup-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.backup-card strong {
+  font-size: 15px;
+}
+
+.backup-card span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .cloud-sync-card {
@@ -1357,6 +1427,42 @@ textarea:focus {
   pointer-events: none;
 }
 
+.pwa-update-banner {
+  position: fixed;
+  right: 16px;
+  bottom: calc(164px + env(safe-area-inset-bottom));
+  left: 16px;
+  z-index: 58;
+  display: grid;
+  max-width: 688px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin: 0 auto;
+  padding: 12px;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.pwa-update-banner span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 780;
+  line-height: 1.45;
+}
+
+.pwa-update-banner div {
+  display: flex;
+  gap: 8px;
+}
+
+.pwa-update-banner .button {
+  min-height: 38px;
+  padding: 0 12px;
+}
+
 .toast {
   align-self: stretch;
   padding: 12px 14px;
@@ -1384,6 +1490,14 @@ textarea:focus {
 
   .page-header {
     align-items: flex-start;
+  }
+
+  .pwa-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pwa-update-banner {
+    grid-template-columns: 1fr;
   }
 
   .page-header h1 {
@@ -3456,6 +3570,14 @@ img.exercise-illustration--custom {
 .toast-stack {
   width: min(calc(100% - 32px), 398px);
   max-width: none;
+}
+
+.pwa-update-banner {
+  right: auto;
+  left: 50%;
+  width: min(calc(100% - 32px), 398px);
+  max-width: none;
+  transform: translateX(-50%);
 }
 
 .body-heatmap-card {

@@ -9,8 +9,9 @@ import { SessionDetailPage } from "./pages/SessionDetailPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { StartWorkoutPage as StartWorkoutView } from "./pages/StartWorkoutPage";
 import { TrainingCalendarPage } from "./pages/TrainingCalendarPage";
-import { clearData, loadData, resetData, saveData } from "./lib/storage";
+import { clearData, loadData, resetData, saveData, saveLocalDataBackup } from "./lib/storage";
 import { loadCloudSyncSettings, pushCloudData, saveCloudSyncSettings } from "./lib/cloudSync";
+import { activatePwaUpdate, isStandalonePwa, registerPwa, type BeforeInstallPromptEvent } from "./lib/pwa";
 import { buildWorkoutTitle, createId, sortMuscleGroups } from "./lib/workout";
 import { todayYmd } from "./lib/date";
 import { getDefaultTrainingPlan } from "./lib/trainingPlan";
@@ -116,6 +117,10 @@ export default function App() {
   const [startPreset, setStartPreset] = useState<MuscleGroup[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [cloudSettings, setCloudSettings] = useState(loadCloudSyncSettings);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
+  const [pwaRegistration, setPwaRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [pwaUpdateAvailable, setPwaUpdateAvailable] = useState(false);
   const autoSyncReadyRef = useRef(false);
 
   const notify = useCallback((message: string, tone: Toast["tone"] = "success") => {
@@ -134,6 +139,65 @@ export default function App() {
   }, [loadError, notify]);
 
   const activeTab = useMemo(() => activeTabFromView(view), [view]);
+
+  useEffect(() => {
+    function handleBeforeInstallPrompt(event: Event) {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    }
+
+    function handleAppInstalled() {
+      setInstallPrompt(null);
+      notify("已安装到设备");
+    }
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, [notify]);
+
+  useEffect(() => {
+    function syncOnlineState() {
+      setIsOnline(navigator.onLine);
+    }
+
+    window.addEventListener("online", syncOnlineState);
+    window.addEventListener("offline", syncOnlineState);
+    return () => {
+      window.removeEventListener("online", syncOnlineState);
+      window.removeEventListener("offline", syncOnlineState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!import.meta.env.PROD) {
+      return undefined;
+    }
+
+    let active = true;
+    void registerPwa({
+      onNeedRefresh: (registration) => {
+        if (!active) {
+          return;
+        }
+        setPwaRegistration(registration);
+        setPwaUpdateAvailable(true);
+      },
+      onOfflineReady: () => notify("离线缓存已准备好"),
+      onError: () => notify("PWA 缓存注册失败，可刷新后重试", "warning"),
+    }).then((registration) => {
+      if (active && registration) {
+        setPwaRegistration(registration);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [notify]);
 
   useEffect(() => {
     if (!autoSyncReadyRef.current) {
@@ -183,6 +247,31 @@ export default function App() {
       setStartPreset([]);
     }
     setView({ name: tab });
+  }
+
+  async function installPwa() {
+    if (!installPrompt) {
+      notify("当前浏览器没有提供一键安装，请使用浏览器菜单添加到主屏幕", "warning");
+      return;
+    }
+
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    setInstallPrompt(null);
+    notify(choice.outcome === "accepted" ? "安装已开始" : "已取消安装", choice.outcome === "accepted" ? "success" : "warning");
+  }
+
+  function applyPwaUpdate() {
+    if (view.name === "active") {
+      notify("训练中先完成或放弃当前训练，再更新 App", "warning");
+      return;
+    }
+
+    saveLocalDataBackup(data, "PWA 更新前自动备份");
+    const activated = activatePwaUpdate(pwaRegistration);
+    if (!activated) {
+      window.location.reload();
+    }
   }
 
   function saveSession(session: WorkoutSession, updateTemplates = false) {
@@ -513,7 +602,30 @@ export default function App() {
           onImport={importData}
           onCloudSettingsChange={setCloudSettings}
           onReset={restoreSeed}
+          pwaStatus={{
+            canInstall: Boolean(installPrompt),
+            isOnline,
+            isStandalone: isStandalonePwa(),
+            serviceWorkerSupported: "serviceWorker" in navigator,
+            updateAvailable: pwaUpdateAvailable,
+            onInstall: () => void installPwa(),
+            onUpdate: applyPwaUpdate,
+          }}
         />
+      ) : null}
+
+      {pwaUpdateAvailable ? (
+        <div className="pwa-update-banner" role="status">
+          <span>有新版本可用，更新前会自动备份本机数据。</span>
+          <div>
+            <button className="button button--ghost" type="button" onClick={() => setPwaUpdateAvailable(false)}>
+              稍后
+            </button>
+            <button className="button button--primary" type="button" onClick={applyPwaUpdate}>
+              立即更新
+            </button>
+          </div>
+        </div>
       ) : null}
 
       <div className="toast-stack" aria-live="polite">
