@@ -15,8 +15,10 @@ import {
   checkCloudHealth,
   createSyncSecret,
   deriveSyncSettings,
+  getCloudMetadata,
   pullCloudData,
   pushCloudData,
+  type CloudMetadata,
   saveCloudSyncSettings,
   type CloudHealth,
   type CloudSyncSettings,
@@ -44,6 +46,7 @@ type SettingsPageProps = {
 };
 
 type SyncBusyState = "save" | "push" | "pull" | null;
+type CloudMetaStatus = "idle" | "loading" | "error";
 
 function formatSyncTime(value: string | undefined): string {
   if (!value) {
@@ -65,6 +68,16 @@ function formatBackupSummary(summary: LocalDataBackupSummary | null): string {
   return `${formatSyncTime(summary.createdAt)} · ${summary.sessionCount} 条记录`;
 }
 
+function isRemoteDataNewer(remoteUpdatedAt: string | undefined, localUpdatedAt: string): boolean {
+  const remoteTime = Date.parse(remoteUpdatedAt ?? "");
+  const localTime = Date.parse(localUpdatedAt);
+  if (!Number.isFinite(remoteTime) || !Number.isFinite(localTime)) {
+    return false;
+  }
+
+  return remoteTime > localTime + 1000;
+}
+
 export function SettingsPage({
   data,
   cloudSettings,
@@ -80,11 +93,14 @@ export function SettingsPage({
   const [confirmReset, setConfirmReset] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmCloudPull, setConfirmCloudPull] = useState(false);
+  const [confirmCloudPushOverwrite, setConfirmCloudPushOverwrite] = useState(false);
   const [confirmBackupRestore, setConfirmBackupRestore] = useState(false);
   const [syncSecret, setSyncSecret] = useState("");
   const [generatedSecret, setGeneratedSecret] = useState("");
   const [syncBusy, setSyncBusy] = useState<SyncBusyState>(null);
   const [cloudHealth, setCloudHealth] = useState<CloudHealth | null>(null);
+  const [cloudMetadata, setCloudMetadata] = useState<CloudMetadata | null>(null);
+  const [cloudMetaStatus, setCloudMetaStatus] = useState<CloudMetaStatus>("idle");
   const [backupSummary, setBackupSummary] = useState(loadLocalDataBackupSummary);
 
   useEffect(() => {
@@ -110,6 +126,36 @@ export function SettingsPage({
     };
   }, []);
 
+  useEffect(() => {
+    let ignore = false;
+    if (!cloudSettings.syncId) {
+      setCloudMetadata(null);
+      setCloudMetaStatus("idle");
+      return () => {
+        ignore = true;
+      };
+    }
+
+    setCloudMetaStatus("loading");
+    void getCloudMetadata(cloudSettings.syncId)
+      .then((metadata) => {
+        if (!ignore) {
+          setCloudMetadata(metadata);
+          setCloudMetaStatus("idle");
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setCloudMetadata(null);
+          setCloudMetaStatus("error");
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [cloudSettings.syncId]);
+
   function persistCloudSettings(next: CloudSyncSettings): CloudSyncSettings {
     const saved = saveCloudSyncSettings(next);
     onCloudSettingsChange(saved);
@@ -122,6 +168,42 @@ export function SettingsPage({
       setBackupSummary(summary);
     }
     return summary;
+  }
+
+  async function refreshCloudMetadata(syncId = cloudSettings.syncId): Promise<CloudMetadata | null> {
+    if (!syncId) {
+      setCloudMetadata(null);
+      setCloudMetaStatus("idle");
+      return null;
+    }
+
+    setCloudMetaStatus("loading");
+    try {
+      const metadata = await getCloudMetadata(syncId);
+      setCloudMetadata(metadata);
+      setCloudMetaStatus("idle");
+      return metadata;
+    } catch (error) {
+      setCloudMetadata(null);
+      setCloudMetaStatus("error");
+      throw error;
+    }
+  }
+
+  function formatCloudMetadataTime(): string {
+    if (!cloudSettings.syncId) {
+      return "未设置";
+    }
+    if (cloudMetaStatus === "loading") {
+      return "检查中";
+    }
+    if (cloudMetaStatus === "error") {
+      return "检查失败";
+    }
+    if (!cloudMetadata?.exists) {
+      return "尚未上传";
+    }
+    return formatSyncTime(cloudMetadata.dataUpdatedAt ?? cloudMetadata.updatedAt);
   }
 
   async function handleImport(file: File | null) {
@@ -173,6 +255,7 @@ export function SettingsPage({
         return;
       }
       setSyncSecret("");
+      void refreshCloudMetadata(saved.syncId).catch(() => undefined);
       notify("云同步码已保存");
     } catch (error) {
       notify(error instanceof Error ? error.message : "同步码保存失败", "danger");
@@ -181,19 +264,36 @@ export function SettingsPage({
     }
   }
 
-  async function handlePushCloud() {
+  async function handlePushCloud(forceOverwrite = false) {
     if (!cloudSettings.syncId) {
       notify("请先设置同步码", "warning");
       return;
     }
     try {
       setSyncBusy("push");
+      const metadata = await refreshCloudMetadata(cloudSettings.syncId);
+      if (
+        !forceOverwrite &&
+        metadata?.exists &&
+        isRemoteDataNewer(metadata.dataUpdatedAt ?? metadata.updatedAt, data.updatedAt)
+      ) {
+        setConfirmCloudPushOverwrite(true);
+        return;
+      }
+
       const result = await pushCloudData(cloudSettings.syncId, data);
       persistCloudSettings({
         ...cloudSettings,
         lastPushedAt: result.updatedAt,
         lastSyncedAt: result.updatedAt,
       });
+      setCloudMetadata({
+        exists: true,
+        updatedAt: result.updatedAt,
+        dataUpdatedAt: data.updatedAt,
+        sessionCount: data.sessions.length,
+      });
+      setCloudMetaStatus("idle");
       notify("已上传到云端");
     } catch (error) {
       notify(error instanceof Error ? error.message : "上传失败", "danger");
@@ -216,6 +316,13 @@ export function SettingsPage({
         lastPulledAt: snapshot.updatedAt,
         lastSyncedAt: snapshot.updatedAt,
       });
+      setCloudMetadata({
+        exists: true,
+        updatedAt: snapshot.updatedAt,
+        dataUpdatedAt: snapshot.data.updatedAt,
+        sessionCount: snapshot.data.sessions.length,
+      });
+      setCloudMetaStatus("idle");
       onImport(snapshot.data);
       notify("已从云端恢复");
     } catch (error) {
@@ -236,6 +343,10 @@ export function SettingsPage({
     notify("已恢复最近本机备份");
     setConfirmBackupRestore(false);
   }
+
+  const cloudDataIsNewer = Boolean(
+    cloudMetadata?.exists && isRemoteDataNewer(cloudMetadata.dataUpdatedAt ?? cloudMetadata.updatedAt, data.updatedAt),
+  );
 
   return (
     <div className="page">
@@ -422,6 +533,9 @@ export function SettingsPage({
           </label>
           <div className="cloud-sync-card__status">
             <span>本机更新：{formatSyncTime(data.updatedAt)}</span>
+            <span className={cloudDataIsNewer ? "is-warning" : undefined}>
+              云端更新：{formatCloudMetadataTime()}
+            </span>
             <span>上次上传：{formatSyncTime(cloudSettings.lastPushedAt)}</span>
             <span>上次恢复：{formatSyncTime(cloudSettings.lastPulledAt)}</span>
           </div>
@@ -448,6 +562,8 @@ export function SettingsPage({
               disabled={!cloudSettings.syncId}
               onClick={() => {
                 persistCloudSettings({ syncId: null, syncLabel: "", autoSync: false });
+                setCloudMetadata(null);
+                setCloudMetaStatus("idle");
                 notify("已关闭云同步");
               }}
             >
@@ -506,6 +622,18 @@ export function SettingsPage({
         confirmLabel="恢复"
         onCancel={() => setConfirmCloudPull(false)}
         onConfirm={() => void handlePullCloud()}
+      />
+
+      <ConfirmDialog
+        open={confirmCloudPushOverwrite}
+        title="云端数据更新较新"
+        description="继续上传会用本机数据覆盖云端。建议先从云端恢复或导出 JSON 备份。"
+        confirmLabel="仍然上传"
+        onCancel={() => setConfirmCloudPushOverwrite(false)}
+        onConfirm={() => {
+          setConfirmCloudPushOverwrite(false);
+          void handlePushCloud(true);
+        }}
       />
 
       <ConfirmDialog

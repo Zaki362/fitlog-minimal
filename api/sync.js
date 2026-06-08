@@ -128,13 +128,30 @@ export default async function handler(request, response) {
 
       const record = await getRedis().get(`${KEY_PREFIX}${syncId}`);
       if (!isObject(record) || !isAppDataLike(record.data)) {
+        if (url.searchParams.get("meta") === "1") {
+          sendJson(response, 200, { exists: false, updatedAt: null, dataUpdatedAt: null });
+          return;
+        }
         sendJson(response, 404, { message: "云端还没有数据，请先从一台设备上传" });
+        return;
+      }
+
+      const updatedAt = typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString();
+      const dataUpdatedAt = typeof record.data.updatedAt === "string" ? record.data.updatedAt : updatedAt;
+
+      if (url.searchParams.get("meta") === "1") {
+        sendJson(response, 200, {
+          exists: true,
+          updatedAt,
+          dataUpdatedAt,
+          sessionCount: Array.isArray(record.data.sessions) ? record.data.sessions.length : 0,
+        });
         return;
       }
 
       sendJson(response, 200, {
         data: record.data,
-        updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
+        updatedAt,
       });
       return;
     }

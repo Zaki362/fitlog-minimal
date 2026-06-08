@@ -23,6 +23,13 @@ export type CloudPushResult = {
   updatedAt: string;
 };
 
+export type CloudMetadata = {
+  exists: boolean;
+  updatedAt?: string;
+  dataUpdatedAt?: string;
+  sessionCount?: number;
+};
+
 export type CloudHealth = {
   ok: boolean;
   configured: boolean;
@@ -165,6 +172,30 @@ export async function pushCloudData(syncId: string, data: AppData): Promise<Clou
   const body = (await response.json()) as { updatedAt?: unknown };
   return {
     updatedAt: typeof body.updatedAt === "string" ? body.updatedAt : new Date().toISOString(),
+  };
+}
+
+export async function getCloudMetadata(syncId: string): Promise<CloudMetadata> {
+  assertCloudApiAvailable();
+  const response = await fetch(`/api/sync?syncId=${encodeURIComponent(syncId)}&meta=1`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  const body = (await response.json()) as {
+    exists?: unknown;
+    updatedAt?: unknown;
+    dataUpdatedAt?: unknown;
+    sessionCount?: unknown;
+  };
+  const exists = Boolean(body.exists);
+  return {
+    exists,
+    updatedAt: exists && typeof body.updatedAt === "string" ? body.updatedAt : undefined,
+    dataUpdatedAt: exists && typeof body.dataUpdatedAt === "string" ? body.dataUpdatedAt : undefined,
+    sessionCount: exists && typeof body.sessionCount === "number" ? body.sessionCount : undefined,
   };
 }
 
