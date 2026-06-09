@@ -1743,7 +1743,6 @@ body {
 }
 
 .icon-button svg,
-.header-icon svg,
 .bottom-nav svg,
 .button svg,
 .recommendation-card__icon svg,
@@ -1763,15 +1762,6 @@ body {
   padding: 0;
   border-color: transparent;
   background: transparent;
-}
-
-.header-icon {
-  display: inline-flex;
-  width: 42px;
-  height: 42px;
-  align-items: center;
-  justify-content: center;
-  color: var(--text);
 }
 
 .button--primary {
