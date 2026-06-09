@@ -142,6 +142,10 @@ export interface ActiveWorkoutDraft {
   exercises: SessionExercise[];
   cardio: CardioEntry[];
   notes?: string;
+  duration?: string;
+  overallFeeling?: OverallFeeling;
+  syncTemplateUpdates?: boolean;
+  autosavedAt?: string;
 }
 
 export interface UndertrainedGroup {

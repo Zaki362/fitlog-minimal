@@ -11,6 +11,7 @@ type ActiveWorkoutPageProps = {
   data: AppData;
   draft: ActiveWorkoutDraft;
   notify: (message: string, tone?: "success" | "warning" | "danger") => void;
+  onDraftChange: (draft: ActiveWorkoutDraft) => void;
   onSave: (session: WorkoutSession, updateTemplates: boolean) => void;
   onCancel: () => void;
 };
@@ -29,16 +30,16 @@ function hasCardioEntry(cardio: CardioEntry[]): boolean {
 
 const feelingOptions: OverallFeeling[] = ["great", "normal", "tired", "bad"];
 
-export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: ActiveWorkoutPageProps) {
+export function ActiveWorkoutPage({ data, draft, notify, onDraftChange, onSave, onCancel }: ActiveWorkoutPageProps) {
   const title = draft.title;
   const [exercises, setExercises] = useState<SessionExercise[]>(draft.exercises);
   const [cardio, setCardio] = useState<CardioEntry[]>(draft.cardio);
-  const [notes, setNotes] = useState("");
-  const [duration, setDuration] = useState("");
+  const [notes, setNotes] = useState(draft.notes ?? "");
+  const [duration, setDuration] = useState(draft.duration ?? "");
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
-  const [overallFeeling, setOverallFeeling] = useState<OverallFeeling>("normal");
-  const [syncTemplateUpdates, setSyncTemplateUpdates] = useState(false);
+  const [overallFeeling, setOverallFeeling] = useState<OverallFeeling>(draft.overallFeeling ?? "normal");
+  const [syncTemplateUpdates, setSyncTemplateUpdates] = useState(Boolean(draft.syncTemplateUpdates));
 
   const hasWorkoutContent = exercises.length > 0 || hasCardioEntry(cardio) || Boolean(notes.trim()) || Boolean(duration.trim());
   const templateDifferences = exercises.filter((exercise) => {
@@ -81,6 +82,18 @@ export function ActiveWorkoutPage({ data, draft, notify, onSave, onCancel }: Act
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasWorkoutChanges]);
+
+  useEffect(() => {
+    onDraftChange({
+      ...draft,
+      exercises,
+      cardio,
+      notes,
+      duration,
+      overallFeeling,
+      syncTemplateUpdates,
+    });
+  }, [cardio, draft, duration, exercises, notes, onDraftChange, overallFeeling, syncTemplateUpdates]);
 
   function updateExercise(next: SessionExercise) {
     setExercises((current) => current.map((item) => (item.id === next.id ? next : item)));

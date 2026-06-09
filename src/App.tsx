@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "./components/AppShell";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { ActiveWorkoutPage } from "./pages/ActiveWorkoutPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExerciseDetailPage } from "./pages/ExerciseDetailPage";
@@ -10,6 +11,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { StartWorkoutPage as StartWorkoutView } from "./pages/StartWorkoutPage";
 import { TrainingCalendarPage } from "./pages/TrainingCalendarPage";
 import { clearData, loadData, resetData, saveData, saveLocalDataBackup } from "./lib/storage";
+import { clearActiveWorkoutDraft, loadActiveWorkoutDraft, saveActiveWorkoutDraft } from "./lib/activeWorkoutDraft";
 import { loadCloudSyncSettings, pushCloudData, saveCloudSyncSettings } from "./lib/cloudSync";
 import { activatePwaUpdate, isStandalonePwa, registerPwa, type BeforeInstallPromptEvent } from "./lib/pwa";
 import { buildWorkoutTitle, createId, sortMuscleGroups } from "./lib/workout";
@@ -113,6 +115,7 @@ export default function App() {
   const [initialLoad] = useState(loadData);
   const [data, setData] = useState<AppData>(initialLoad.data);
   const [loadError, setLoadError] = useState(initialLoad.error);
+  const [recoverableDraft, setRecoverableDraft] = useState(loadActiveWorkoutDraft);
   const [view, setView] = useState<View>({ name: "dashboard" });
   const [startPreset, setStartPreset] = useState<MuscleGroup[]>([]);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -279,6 +282,8 @@ export default function App() {
     const destinationSessionId = sameDaySession?.id ?? session.id;
     const mergedSameDay = Boolean(sameDaySession);
 
+    clearActiveWorkoutDraft();
+    setRecoverableDraft(null);
     commit((current) => {
       const progressUpdates = [...current.progressUpdates];
       const exercises = current.exercises.map((template) => {
@@ -476,11 +481,15 @@ export default function App() {
   }
 
   function importData(next: AppData) {
+    clearActiveWorkoutDraft();
+    setRecoverableDraft(null);
     setData(saveData(next));
     setView({ name: "dashboard" });
   }
 
   function restoreSeed() {
+    clearActiveWorkoutDraft();
+    setRecoverableDraft(null);
     const next = resetData();
     setData(next);
     setView({ name: "dashboard" });
@@ -488,6 +497,8 @@ export default function App() {
   }
 
   function clearAll() {
+    clearActiveWorkoutDraft();
+    setRecoverableDraft(null);
     const next = clearData();
     setData(next);
     setView({ name: "dashboard" });
@@ -516,7 +527,11 @@ export default function App() {
           initialGroups={startPreset}
           notify={notify}
           onOpenExerciseLibrary={() => setView({ name: "exercises" })}
-          onStartWorkout={(draft) => setView({ name: "active", draft })}
+          onStartWorkout={(draft) => {
+            saveActiveWorkoutDraft(draft);
+            setRecoverableDraft(null);
+            setView({ name: "active", draft });
+          }}
         />
       ) : null}
 
@@ -525,7 +540,12 @@ export default function App() {
           data={data}
           draft={view.draft}
           notify={notify}
-          onCancel={() => setView({ name: "start" })}
+          onDraftChange={saveActiveWorkoutDraft}
+          onCancel={() => {
+            clearActiveWorkoutDraft();
+            setRecoverableDraft(null);
+            setView({ name: "start" });
+          }}
           onSave={saveSession}
         />
       ) : null}
@@ -627,6 +647,30 @@ export default function App() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={Boolean(recoverableDraft && view.name !== "active")}
+        title="继续未完成训练？"
+        description={
+          recoverableDraft
+            ? `${recoverableDraft.title} · ${recoverableDraft.exercises.length} 个动作，刷新前已自动保存。`
+            : undefined
+        }
+        confirmLabel="继续训练"
+        cancelLabel="丢弃"
+        onCancel={() => {
+          clearActiveWorkoutDraft();
+          setRecoverableDraft(null);
+        }}
+        onConfirm={() => {
+          if (!recoverableDraft) {
+            return;
+          }
+          setView({ name: "active", draft: recoverableDraft });
+          setRecoverableDraft(null);
+          notify("已恢复未完成训练");
+        }}
+      />
 
       <div className="toast-stack" aria-live="polite">
         {toasts.map((toast) => (
