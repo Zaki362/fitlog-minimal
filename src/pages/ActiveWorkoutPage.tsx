@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { MuscleChip } from "../components/MuscleChip";
 import { WorkoutExerciseCard } from "../components/WorkoutExerciseCard";
-import { formatDateCN } from "../lib/date";
+import { formatDateCN, todayYmd } from "../lib/date";
 import { buildWorkoutTitle, createId, inferSessionGroups, normalizeOptionalNumber } from "../lib/workout";
 import { OVERALL_FEELING_LABELS } from "../types";
 import type { ActiveWorkoutDraft, AppData, CardioEntry, OverallFeeling, SessionExercise, WorkoutSession } from "../types";
@@ -34,6 +34,7 @@ export function ActiveWorkoutPage({ data, draft, notify, onDraftChange, onSave, 
   const title = draft.title;
   const [exercises, setExercises] = useState<SessionExercise[]>(draft.exercises);
   const [cardio, setCardio] = useState<CardioEntry[]>(draft.cardio);
+  const [workoutDate, setWorkoutDate] = useState(draft.date || todayYmd());
   const [notes, setNotes] = useState(draft.notes ?? "");
   const [duration, setDuration] = useState(draft.duration ?? "");
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -86,6 +87,7 @@ export function ActiveWorkoutPage({ data, draft, notify, onDraftChange, onSave, 
   useEffect(() => {
     onDraftChange({
       ...draft,
+      date: workoutDate,
       exercises,
       cardio,
       notes,
@@ -93,7 +95,7 @@ export function ActiveWorkoutPage({ data, draft, notify, onDraftChange, onSave, 
       overallFeeling,
       syncTemplateUpdates,
     });
-  }, [cardio, draft, duration, exercises, notes, onDraftChange, overallFeeling, syncTemplateUpdates]);
+  }, [cardio, draft, duration, exercises, notes, onDraftChange, overallFeeling, syncTemplateUpdates, workoutDate]);
 
   function updateExercise(next: SessionExercise) {
     setExercises((current) => current.map((item) => (item.id === next.id ? next : item)));
@@ -105,7 +107,7 @@ export function ActiveWorkoutPage({ data, draft, notify, onDraftChange, onSave, 
     const finalizedExercises = exercises.map((exercise) => ({ ...exercise, completed: true }));
     return {
       id: createId("session"),
-      date: draft.date,
+      date: workoutDate,
       title: title.trim() || buildWorkoutTitle(draft.muscleGroups, savedCardio),
       muscleGroups: inferSessionGroups({ ...draft, cardio: savedCardio }, finalizedExercises),
       exercises: finalizedExercises,
@@ -129,6 +131,15 @@ export function ActiveWorkoutPage({ data, draft, notify, onDraftChange, onSave, 
   }
 
   function finishWorkout() {
+    if (!workoutDate) {
+      notify("请选择训练日期", "warning");
+      return;
+    }
+    if (workoutDate > todayYmd()) {
+      notify("训练日期不能晚于今天", "warning");
+      return;
+    }
+
     onSave(buildSession(overallFeeling), syncTemplateUpdates && templateDifferences.length > 0);
     setFinishOpen(false);
   }
@@ -149,7 +160,7 @@ export function ActiveWorkoutPage({ data, draft, notify, onDraftChange, onSave, 
 
       <section className="active-summary">
         <div className="active-summary__row">
-          <span>{formatDateCN(draft.date)}</span>
+          <span>{formatDateCN(workoutDate)}</span>
           <div className="active-summary__status">
             <strong>{exercises.length ? `${exercises.length} 个动作` : "自定义训练"}</strong>
           </div>
@@ -274,8 +285,19 @@ export function ActiveWorkoutPage({ data, draft, notify, onDraftChange, onSave, 
             <h2 id="finish-title">完成这次训练？</h2>
             <p>确认后，本次计划里的动作会统一记为完成。</p>
 
+            <label className="finish-dialog__date">
+              训练日期
+              <input
+                required
+                max={todayYmd()}
+                type="date"
+                value={workoutDate}
+                onChange={(event) => setWorkoutDate(event.target.value)}
+              />
+            </label>
+
             <div className="finish-dialog__section">
-              <strong>今天训练状态怎么样？</strong>
+              <strong>这次训练状态怎么样？</strong>
               <div className="segmented finish-dialog__feelings" role="group" aria-label="训练状态">
                 {feelingOptions.map((feeling) => (
                   <button

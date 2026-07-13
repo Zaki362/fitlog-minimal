@@ -1371,6 +1371,19 @@ textarea:focus {
   margin-bottom: 0;
 }
 
+.finish-dialog__date {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.finish-dialog__date input {
+  color: var(--text);
+  font-weight: 700;
+}
+
 .finish-dialog__section {
   display: grid;
   gap: 10px;
